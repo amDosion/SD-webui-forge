@@ -32,7 +32,7 @@ fi
 # ✅ 克隆或更新主项目
 if [ -d "$TARGET_DIR/.git" ]; then
   echo "🔁 Updating Git repo: $TARGET_DIR"
-  git -C "$TARGET_DIR" pull --ff-only
+  git -C "$TARGET_DIR" pull --ff-only || echo "⚠️ Git update failed"
 elif [ ! -d "$TARGET_DIR" ] || [ -z "$(ls -A "$TARGET_DIR")" ]; then
   echo "📥 Cloning $UI WebUI..."
   git clone "$REPO" "$TARGET_DIR"
@@ -71,12 +71,15 @@ else
   echo "✅ Python venv already exists"
 fi
 
-# ✅ 基础目录
+# ✅ 创建必要目录
 mkdir -p extensions \
   models/Stable-diffusion/SD1.5 \
   models/Stable-diffusion/flux \
   models/Stable-diffusion/XL \
-  models/ControlNet models/VAE models/text_encoder outputs
+  models/ControlNet \
+  models/VAE \
+  models/text_encoder \
+  outputs
 
 # ✅ 下载函数
 clone_or_update_repo() {
@@ -97,7 +100,7 @@ download_with_progress() {
   if [ ! -f "$output" ]; then
     echo "⬇️  Downloading: $output"
     mkdir -p "$(dirname "$output")"
-    wget --show-progress -O "$output" "$url"
+    wget --progress=bar:force:noscroll -O "$output" "$url"
   else
     echo "✅ Already exists: $output"
   fi
@@ -127,20 +130,19 @@ should_skip() {
   return 1
 }
 
-# ✅ 自动拉取 resources.txt
+# ✅ 拉取 remote resources.txt
 RESOURCE_URL="https://raw.githubusercontent.com/chuan1127/SD-webui-forge/main/resources.txt"
 RESOURCE_FILE="$TARGET_DIR/resources.txt"
 
-echo "📥 Downloading latest resources.txt from: $RESOURCE_URL"
-curl -fsSL "$RESOURCE_URL" -o "$RESOURCE_FILE" || echo "⚠️ Failed to fetch remote resources.txt"
+echo "📥 Downloading resources.txt from: $RESOURCE_URL"
+curl -fsSL "$RESOURCE_URL" -o "$RESOURCE_FILE" || echo "⚠️ Failed to download resources.txt"
 
-# ✅ 处理资源列表
+# ✅ 处理资源
 if [ -f "$RESOURCE_FILE" ]; then
   echo "📚 Processing resources.txt..."
 
   while IFS=, read -r dir url; do
     [[ "$dir" =~ ^#.*$ || -z "$dir" ]] && continue
-
     if should_skip "$dir"; then
       echo "⛔ Skipping incompatible: $dir"
       continue
@@ -163,10 +165,9 @@ if [ -f "$RESOURCE_FILE" ]; then
         [[ "$ENABLE_DOWNLOAD_MODELS" == "true" && "$NET_OK" == "true" ]] && download_with_progress "$dir" "$url"
         ;;
       *)
-        echo "❓ Unknown resource: $dir"
+        echo "❓ Unknown resource type: $dir"
         ;;
     esac
-
   done < "$RESOURCE_FILE"
 else
   echo "⚠️ No resources.txt found after attempted download"
