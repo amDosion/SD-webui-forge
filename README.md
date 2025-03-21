@@ -1,3 +1,19 @@
+# 注意事项
+
+| 类型                 | 说明                                                                                         |
+|--------------------|--------------------------------------------------------------------------------------------|
+| **UI**               | 选择 `forge`（推荐）或 `auto`（A1111）                                                         |
+| **ENABLE_* 变量**    | 控制各类资源是否从 `resources.txt` 下载                                                         |
+| **resources.txt**   | 由 `run.sh` 自动下载至对应 WebUI 根目录                                                            |
+| **目录挂载（volumes）** | 映射宿主机目录，便于持久化输出 / 模型 / 缓存                                                      |
+| **GPU支持**           | `deploy.resources.reservations.devices` 用于 Docker 原生 GPU 支持                               |
+| **CUDA 12.6 支持**    | 基于 `pytorch/pytorch:2.6.0-cuda12.6-cudnn9-devel` 镜像构建                                    |
+
+---
+
+此表格列出了在使用 Stable Diffusion WebUI 启动脚本时需要注意的关键配置和支持选项。
+
+
 # 🧠 Stable Diffusion WebUI Dockerized (Forge / AUTOMATIC1111)
 
 本项目通过 Docker 打包 `Stable Diffusion WebUI`，支持版本包括 `Forge` 和 `AUTOMATIC1111`。项目内置了模型管理、插件自动安装、FFmpeg 支持以及环境变量配置等高级特性。
