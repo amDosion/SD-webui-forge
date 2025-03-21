@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  sd-webui:
+    build: .
+    image: sd-webui-custom:latest
+    container_name: stable-diffusion-webui
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./models:/home/webui/models
+      - ./outputs:/home/webui/outputs
+      - ./resources.txt:/app/resources.txt
+    environment:
+      - UI=forge
+      - ENABLE_DOWNLOAD=true
+      - ENABLE_DOWNLOAD_EXT=true
+      - ENABLE_DOWNLOAD_MODELS=true
+      - ENABLE_DOWNLOAD_TEXT_ENCODERS=true
+      - ENABLE_DOWNLOAD_VAE=true
+      - ENABLE_DOWNLOAD_CONTROLNET=true
+      - HUGGINGFACE_TOKEN=your_token_if_needed
+      - CIVITAI_API_TOKEN=your_token_if_needed
+    runtime: nvidia
+    restart: unless-stopped
