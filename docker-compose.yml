@@ -1,25 +1,49 @@
 version: "3.9"
 
 services:
-  sd-webui:
-    build: .
-    image: sd-webui-custom:latest
-    container_name: stable-diffusion-webui
+  webui:
+    container_name: sd-webui-forge
+    image: chuan1127/sd-webui-forge:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # === WebUI 类型 ===
+      - UI=forge  # 或 auto
+
+      # === 运行参数（可选）===
+      - ARGS=--xformers --api --listen --enable-insecure-extension-access --theme dark
+
+      # === 下载控制（true / false）===
+      - ENABLE_DOWNLOAD=true                     # 开启所有下载
+      - ENABLE_DOWNLOAD_EXTS=true               # 插件
+      - ENABLE_DOWNLOAD_MODELS=true             # 主模型
+      - ENABLE_DOWNLOAD_CONTROLNET=true         # ControlNet 模型
+      - ENABLE_DOWNLOAD_VAE=true                # VAE 模型
+      - ENABLE_DOWNLOAD_TEXT_ENCODERS=true      # Text Encoder 模型
+      - ENABLE_DOWNLOAD_TRANSFORMERS=true       # 🤗 Transformers 库（用于 SDXL / LLM 等）
+
+      # === Token（可选）===
+      - HUGGINGFACE_TOKEN=your_hf_token_here
+      - CIVITAI_API_TOKEN=your_civitai_token_here
+
+    volumes:
+      - ./outputs:/home/webui/outputs
+      - ./models:/home/webui/models
+      - ./cache:/home/webui/cache
+      - ./custom:/app/custom  # 你可以挂载其他文件
+
     ports:
       - "7860:7860"
-    volumes:
-      - ./models:/home/webui/models
-      - ./outputs:/home/webui/outputs
-      - ./resources.txt:/app/resources.txt
-    environment:
-      - UI=forge
-      - ENABLE_DOWNLOAD=true
-      - ENABLE_DOWNLOAD_EXT=true
-      - ENABLE_DOWNLOAD_MODELS=true
-      - ENABLE_DOWNLOAD_TEXT_ENCODERS=true
-      - ENABLE_DOWNLOAD_VAE=true
-      - ENABLE_DOWNLOAD_CONTROLNET=true
-      - HUGGINGFACE_TOKEN=your_token_if_needed
-      - CIVITAI_API_TOKEN=your_token_if_needed
-    runtime: nvidia
+
     restart: unless-stopped
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    runtime: nvidia  # 如果用的是旧版 Docker + nvidia-docker2 插件
