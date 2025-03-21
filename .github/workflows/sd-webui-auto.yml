@@ -1,0 +1,70 @@
+name: sd-webui-auto
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每 6 小时检查一次
+  workflow_dispatch:      # 支持手动触发
+
+env:
+  DOCKER_IMAGE: chuan1127/sd-webui-auto
+  FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
+  AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+
+jobs:
+  sd-webui-auto-check-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout this repo
+        uses: actions/checkout@v3
+
+      - name: 🔍 Check upstream SHAs
+        id: upstream
+        run: |
+          git clone --depth=1 $FORGE_REPO forge-latest
+          git clone --depth=1 $AUTO_REPO auto-latest
+          
+          echo "forge_sha=$(cd forge-latest && git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "auto_sha=$(cd auto-latest && git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: 🧠 Compare with cache
+        id: compare
+        run: |
+          echo "${{ steps.upstream.outputs.forge_sha }}" > forge.sha
+          echo "${{ steps.upstream.outputs.auto_sha }}" > auto.sha
+
+          if [ -f .sha_cache ]; then
+            if cmp -s .sha_cache forge.sha && cmp -s .sha_cache auto.sha; then
+              echo "✅ No changes in upstream"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "🆕 Changes detected!"
+          cat forge.sha > .sha_cache
+          cat auto.sha >> .sha_cache
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: 🛠 Setup Docker Buildx
+        if: steps.compare.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@v2
+
+      - name: 🔐 Login to DockerHub
+        if: steps.compare.outputs.changed == 'true'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 🐳 Build & Push sd-webui-auto Image
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $DOCKER_IMAGE:latest \
+            --push .
+
+      - name: 🧹 Clean temp files
+        run: |
+          rm -rf forge-latest auto-latest forge.sha auto.sha
