@@ -22,7 +22,6 @@ WORKDIR /app
 
 # 拷贝运行脚本和资源列表
 COPY run.sh /app/run.sh
-COPY resources.txt /app/resources.txt
 
 # 使用非 root 用户执行（WebUI 禁止 root 启动）
 USER webui
