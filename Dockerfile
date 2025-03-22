@@ -12,17 +12,19 @@ RUN apt-get update && apt-get upgrade -y && \
     libgl1 libgl1-mesa-glx libglvnd0 \
     libglib2.0-0 libsm6 libxrender1 libxext6 \
     xvfb build-essential cmake \
-    libgoogle-perftools-dev \
-    bc apt-transport-https \
-    htop nano && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    libgoogle-perftools-dev bc \
+    apt-transport-https htop nano \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 创建非 root 用户
+# 创建用户
 RUN useradd -m webui
-
 WORKDIR /app
+
+# 拷贝启动脚本和资源文件
 COPY run.sh /app/run.sh
-RUN chmod +x /app/run.sh && chown -R webui:webui /app
+COPY resources.txt /app/resources.txt
+COPY ffmpeg /app/ffmpeg
+RUN chmod +x /app/run.sh /app/ffmpeg && chown -R webui:webui /app
 
 USER webui
 ENTRYPOINT ["/app/run.sh"]
