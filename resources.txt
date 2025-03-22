@@ -66,15 +66,16 @@ models/ControlNet/control_v11p_sd15_inpaint.pth,https://huggingface.co/lllyasvie
 models/ControlNet/control_v11f1p_sd15_tile.pth,https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11f1p_sd15_tile.pth
 
 # ======== ControlNet SDXL 模型 ========
-models/ControlNet/controlnet-canny-sdxl-1.0.safetensors,https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/resolve/main/controlnet-canny-sdxl-1.0.safetensors
-models/ControlNet/controlnet-depth-sdxl-1.0.safetensors,https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0/resolve/main/controlnet-depth-sdxl-1.0.safetensors
-models/ControlNet/controlnet-hed-sdxl-1.0.safetensors,https://huggingface.co/diffusers/controlnet-hed-sdxl-1.0/resolve/main/controlnet-hed-sdxl-1.0.safetensors
-models/ControlNet/controlnet-openpose-sdxl-1.0.safetensors,https://huggingface.co/diffusers/controlnet-openpose-sdxl-1.0/resolve/main/controlnet-openpose-sdxl-1.0.safetensors
-models/ControlNet/controlnet-scribble-sdxl-1.0.safetensors,https://huggingface.co/diffusers/controlnet-scribble-sdxl-1.0/resolve/main/controlnet-scribble-sdxl-1.0.safetensors
+models/ControlNet/controlnet-anime_painter.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_anime_painter.safetensors?download=true
+models/ControlNet/controlnet-canny-sdxl-v2.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_controlnet-canny-sdxl_V2.safetensors?download=true
+models/ControlNet/controlnet-depth-sdxl-1.0.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_controlnet_depth_sdxl_1.0.safetensors?download=true
+models/ControlNet/controlnet-openpose-sdxl-1.0.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_controlnet-openpose-sdxl-1.0.safetensors?download=true
+models/ControlNet/controlnet-scribble-sdxl-1.0.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_controlnet-scribble-sdxl-1.0.safetensors?download=true
+models/ControlNet/controlnet-tile-sdxl-1.0.safetensors,https://huggingface.co/lyb888/xinsir_controlnet_collection_all/resolve/main/xinsir_controlnet_tile_sdxl_1.0.safetensors?download=true
 
 # ======== ControlNet FLUX 模型 ========
 models/ControlNet/flux-canny-controlnet-v3.safetensors,https://huggingface.co/XLabs-AI/flux-controlnet-collections/resolve/main/flux-canny-controlnet-v3.safetensors
 models/ControlNet/flux-hed-controlnet-v3.safetensors,https://huggingface.co/XLabs-AI/flux-controlnet-collections/resolve/main/flux-hed-controlnet-v3.safetensors
 models/ControlNet/flux-depth-controlnet-v3.safetensors,https://huggingface.co/XLabs-AI/flux-controlnet-collections/resolve/main/flux-depth-controlnet-v3.safetensors
-models/ControlNet/flux-controlnet-union-pro.safetensors,https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro/resolve/main/flux-controlnet-union-pro.safetensors
-models/ControlNet/flux-controlnet-upscaler.safetensors,https://huggingface.co/jasperai/Flux.1-dev-Controlnet-Upscaler/resolve/main/flux-controlnet-upscaler.safetensors
+models/ControlNet/flux-controlnet-union-pro.safetensors,https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro/resolve/main/diffusion_pytorch_model.safetensors?download=true
+models/ControlNet/flux-controlnet-upscaler.safetensors,https://huggingface.co/jasperai/Flux.1-dev-Controlnet-Upscaler/resolve/main/diffusion_pytorch_model.safetensors?download=true
