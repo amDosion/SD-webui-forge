@@ -12,15 +12,6 @@ ENABLE_DOWNLOAD_TRANSFORMERS="${ENABLE_DOWNLOAD_TRANSFORMERS:-$ENABLE_DOWNLOAD_A
 
 export NO_TCMALLOC=1
 
-# ✅ 安装 ffmpeg（仅容器首次运行时）
-if [ ! -x /usr/local/bin/ffmpeg ]; then
-  echo "📦 ffmpeg not found, installing bundled version..."
-  cp /app/ffmpeg /usr/local/bin/ffmpeg
-  chmod +x /usr/local/bin/ffmpeg
-else
-  echo "✅ ffmpeg already exists: $(/usr/local/bin/ffmpeg -version | head -n 1)"
-fi
-
 # ✅ 设置 WebUI 目标目录
 if [ "$UI" = "auto" ]; then
   TARGET_DIR="/app/sd-webui"
