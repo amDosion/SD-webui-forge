@@ -22,7 +22,6 @@ RUN useradd -m webui
 
 WORKDIR /app
 COPY run.sh /app/run.sh
-COPY resources.txt /app/resources.txt
 RUN chmod +x /app/run.sh && chown -R webui:webui /app
 
 USER webui
