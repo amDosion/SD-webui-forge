@@ -3,7 +3,7 @@ version: "3.9"
 services:
   webui:
     container_name: sd-webui-forge
-    image: chuan1127/sd-webui-forge:latest
+    image: chuan1127/sd-webui-auto:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,10 +28,7 @@ services:
       - CIVITAI_API_TOKEN=your_civitai_token_here
 
     volumes:
-      - ./outputs:/home/webui/outputs
-      - ./models:/home/webui/models
-      - ./cache:/home/webui/cache
-      - ./custom:/app/custom  # 你可以挂载其他文件
+      - ./webui:/app/webui
 
     ports:
       - "7860:7860"
