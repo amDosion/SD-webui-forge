@@ -123,11 +123,17 @@ should_skip() {
   return 1
 }
 
-# ✅ 处理资源列表
-echo "📚 Loading resources.txt..."
-cp /app/resources.txt "$TARGET_DIR/resources.txt"
+# ✅ 自动拉取 resources.txt
+RESOURCE_URL="https://raw.githubusercontent.com/chuan1127/SD-webui-forge/main/resources.txt"
+RESOURCE_FILE="$TARGET_DIR/resources.txt"
 
-if [ -f "$TARGET_DIR/resources.txt" ]; then
+echo "📥 Downloading latest resources.txt from: $RESOURCE_URL"
+curl -fsSL "$RESOURCE_URL" -o "$RESOURCE_FILE" || echo "⚠️ Failed to fetch remote resources.txt"
+
+# ✅ 处理资源列表
+if [ -f "$RESOURCE_FILE" ]; then
+  echo "📚 Processing resources.txt..."
+
   while IFS=, read -r dir url; do
     [[ "$dir" =~ ^#.*$ || -z "$dir" ]] && continue
 
@@ -149,7 +155,7 @@ if [ -f "$TARGET_DIR/resources.txt" ]; then
       models/text_encoder/*)
         [[ "$ENABLE_DOWNLOAD_TEXT_ENCODERS" == "true" && "$NET_OK" == "true" ]] && download_with_progress "$dir" "$url"
         ;;
-      models/*)
+      models/Stable-diffusion/*)
         [[ "$ENABLE_DOWNLOAD_MODELS" == "true" && "$NET_OK" == "true" ]] && download_with_progress "$dir" "$url"
         ;;
       *)
@@ -157,9 +163,9 @@ if [ -f "$TARGET_DIR/resources.txt" ]; then
         ;;
     esac
 
-  done < "$TARGET_DIR/resources.txt"
+  done < "$RESOURCE_FILE"
 else
-  echo "⚠️ No resources.txt found"
+  echo "⚠️ No resources.txt found after attempted download"
 fi
 
 # ✅ HuggingFace 登录
