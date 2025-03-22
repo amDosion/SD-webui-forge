@@ -23,8 +23,7 @@ WORKDIR /app
 # 拷贝启动脚本和资源文件
 COPY run.sh /app/run.sh
 COPY resources.txt /app/resources.txt
-COPY ffmpeg /app/ffmpeg
-RUN chmod +x /app/run.sh /app/ffmpeg && chown -R webui:webui /app
+RUN chmod +x /app/run.sh && chown -R webui:webui /app
 
 USER webui
 ENTRYPOINT ["/app/run.sh"]
