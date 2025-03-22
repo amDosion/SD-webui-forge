@@ -43,15 +43,24 @@ your-project/
 运行以下命令以启动容器，支持图形处理加速和多种自定义选项：
 
 ```bash
-docker run --gpus all -it --rm \
-  -p 7860:7860 \
-  -v $(pwd)/outputs:/home/webui/outputs \
-  -v $(pwd)/models:/home/webui/models \
-  -e UI=forge \
-  -e ARGS="--xformers --api --listen --theme dark" \
-  -e HUGGINGFACE_TOKEN=your_hf_token_here \
-  -e CIVITAI_API_TOKEN=your_civitai_token_here \
-  sd-webui
+services:
+  webui:
+    build: .
+    image: your-image-name
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./webui:/app/webui
+    environment:
+      - UI=forge
+      - ARGS=--xformers --listen --api --enable-insecure-extension-access
+      - ENABLE_DOWNLOAD=true
+      - ENABLE_DOWNLOAD_EXT=true
+      - ENABLE_DOWNLOAD_MODELS=true
+      - ENABLE_DOWNLOAD_TEXT_ENCODERS=true
+      - ENABLE_DOWNLOAD_VAE=true
+      - ENABLE_DOWNLOAD_CONTROLNET=true
+
 ```
 
 ☝️ Token 环境变量为可选项，如果不提供，系统将自动跳过相关登录。
@@ -89,8 +98,8 @@ models/VAE/flux-ae.safetensors,https://huggingface.co/.../flux-ae.safetensors
 
 | 容器路径             | 建议挂载   | 说明                                    |
 |----------------------|------------|-----------------------------------------|
-| `/home/webui/outputs` | `./outputs` | 用于保存生成的图片等输出内容            |
-| `/home/webui/models`  | `./models`  | 模型存储目录，容器会自动按照需求创建结构  |
+| `/app/webui/outputs` | `./outputs` | 用于保存生成的图片等输出内容            |
+| `/app/webui/models`  | `./models`  | 模型存储目录，容器会自动按照需求创建结构  |
 
 🛠️ **常见问题**
 
