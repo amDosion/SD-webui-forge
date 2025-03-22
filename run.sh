@@ -32,7 +32,7 @@ fi
 # ✅ 克隆或更新主项目
 if [ -d "$TARGET_DIR/.git" ]; then
   echo "🔁 Updating Git repo: $TARGET_DIR"
-  git -C "$TARGET_DIR" pull --ff-only || echo "⚠️ Git update failed"
+  git -C "$TARGET_DIR" pull --ff-only
 elif [ ! -d "$TARGET_DIR" ] || [ -z "$(ls -A "$TARGET_DIR")" ]; then
   echo "📥 Cloning $UI WebUI..."
   git clone "$REPO" "$TARGET_DIR"
@@ -71,15 +71,8 @@ else
   echo "✅ Python venv already exists"
 fi
 
-# ✅ 创建必要目录
-mkdir -p extensions \
-  models/Stable-diffusion/SD1.5 \
-  models/Stable-diffusion/flux \
-  models/Stable-diffusion/XL \
-  models/ControlNet \
-  models/VAE \
-  models/text_encoder \
-  outputs
+# ✅ 基础目录
+mkdir -p extensions models models/ControlNet outputs
 
 # ✅ 下载函数
 clone_or_update_repo() {
@@ -100,7 +93,7 @@ download_with_progress() {
   if [ ! -f "$output" ]; then
     echo "⬇️  Downloading: $output"
     mkdir -p "$(dirname "$output")"
-    wget --progress=bar:force:noscroll -O "$output" "$url"
+    wget --show-progress -O "$output" "$url"
   else
     echo "✅ Already exists: $output"
   fi
@@ -130,19 +123,14 @@ should_skip() {
   return 1
 }
 
-# ✅ 拉取 remote resources.txt
-RESOURCE_URL="https://raw.githubusercontent.com/chuan1127/SD-webui-forge/main/resources.txt"
-RESOURCE_FILE="$TARGET_DIR/resources.txt"
+# ✅ 处理资源列表
+echo "📚 Loading resources.txt..."
+cp /app/resources.txt "$TARGET_DIR/resources.txt"
 
-echo "📥 Downloading resources.txt from: $RESOURCE_URL"
-curl -fsSL "$RESOURCE_URL" -o "$RESOURCE_FILE" || echo "⚠️ Failed to download resources.txt"
-
-# ✅ 处理资源
-if [ -f "$RESOURCE_FILE" ]; then
-  echo "📚 Processing resources.txt..."
-
+if [ -f "$TARGET_DIR/resources.txt" ]; then
   while IFS=, read -r dir url; do
     [[ "$dir" =~ ^#.*$ || -z "$dir" ]] && continue
+
     if should_skip "$dir"; then
       echo "⛔ Skipping incompatible: $dir"
       continue
@@ -161,16 +149,17 @@ if [ -f "$RESOURCE_FILE" ]; then
       models/text_encoder/*)
         [[ "$ENABLE_DOWNLOAD_TEXT_ENCODERS" == "true" && "$NET_OK" == "true" ]] && download_with_progress "$dir" "$url"
         ;;
-      models/Stable-diffusion/*)
+      models/*)
         [[ "$ENABLE_DOWNLOAD_MODELS" == "true" && "$NET_OK" == "true" ]] && download_with_progress "$dir" "$url"
         ;;
       *)
-        echo "❓ Unknown resource type: $dir"
+        echo "❓ Unknown resource: $dir"
         ;;
     esac
-  done < "$RESOURCE_FILE"
+
+  done < "$TARGET_DIR/resources.txt"
 else
-  echo "⚠️ No resources.txt found after attempted download"
+  echo "⚠️ No resources.txt found"
 fi
 
 # ✅ HuggingFace 登录
@@ -187,6 +176,6 @@ else
   echo "ℹ️ No CIVITAI_API_TOKEN provided"
 fi
 
-# ✅ 启动 WebUI
+# ✅ 启动
 echo "🚀 Launching WebUI with args: $ARGS"
 exec bash webui.sh -f $ARGS
