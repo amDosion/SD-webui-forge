@@ -1,4 +1,4 @@
-name: sd-webui-auto
+name: stable-diffusion-webui-forge-auto
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:      # 支持手动触发
 
 env:
-  DOCKER_IMAGE: chuan1127/sd-webui-auto
+  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-auto
   FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
   AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 
