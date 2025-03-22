@@ -46,7 +46,7 @@ your-project/
 services:
   webui:
     build: .
-    image: your-image-name
+    image: chuan1127/sd-webui-auto:latest
     ports:
       - "7860:7860"
     volumes:
