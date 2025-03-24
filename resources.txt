@@ -13,7 +13,6 @@ extensions/sd-webui-segment-anything,https://github.com/continue-revolution/sd-w
 extensions/stable-diffusion-webui-aesthetic-gradients,https://github.com/AUTOMATIC1111/stable-diffusion-webui-aesthetic-gradients.git
 extensions/DreamArtist-sd-webui-extension,https://github.com/7eu7d7/DreamArtist-sd-webui-extension.git
 extensions/custom-diffusion-webui,https://github.com/guaneec/custom-diffusion-webui.git
-extensions/sd_smartprocess,https://github.com/d8ahazard/sd_smartprocess.git
 extensions/multi-subject-render,https://github.com/Extraltodeus/multi-subject-render.git
 extensions/stable-diffusion-webui-sonar,https://github.com/Kahsolt/stable-diffusion-webui-sonar.git
 extensions/sd-webui-multiple-hypernetworks,https://github.com/antis0007/sd-webui-multiple-hypernetworks.git
