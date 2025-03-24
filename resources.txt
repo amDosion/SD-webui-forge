@@ -1,6 +1,5 @@
 # ======== 插件 extensions/ ========
 extensions/stable-diffusion-webui-images-browser,https://github.com/AlUlkesh/stable-diffusion-webui-images-browser.git
-extensions/stable-diffusion-webui-huggingface,https://github.com/camenduru/stable-diffusion-webui-huggingface.git
 extensions/civitai-browser,https://github.com/BlafKing/sd-civitai-browser-plus.git
 extensions/sd-webui-infinite-image-browsing,https://github.com/zanllp/sd-webui-infinite-image-browsing.git
 extensions/sd-webui-prompt-all-in-one,https://github.com/Physton/sd-webui-prompt-all-in-one.git
@@ -8,10 +7,7 @@ extensions/sd-webui-wd14-tagger,https://github.com/Akegarasu/sd-webui-wd14-tagge
 extensions/sd_forge_hypertile_svd_z123,https://github.com/licyk/sd_forge_hypertile_svd_z123.git
 extensions/stable-diffusion-webui-localization-zh_Hans,https://github.com/hanamizuki-ai/stable-diffusion-webui-localization-zh_Hans.git
 extensions/ultimate-upscale-for-automatic1111,https://github.com/Coyote-A/ultimate-upscale-for-automatic1111.git
-extensions/sd-webui-segment-anything,https://github.com/continue-revolution/sd-webui-segment-anything.git
-extensions/stable-diffusion-webui-aesthetic-gradients,https://github.com/AUTOMATIC1111/stable-diffusion-webui-aesthetic-gradients.git
 extensions/multi-subject-render,https://github.com/Extraltodeus/multi-subject-render.git
-extensions/sd-webui-multiple-hypernetworks,https://github.com/antis0007/sd-webui-multiple-hypernetworks.git
 extensions/sd-webui-regional-prompter,https://github.com/hako-mikan/sd-webui-regional-prompter.git
 extensions/sd-webui-incantations,https://github.com/v0xie/sd-webui-incantations.git
 extensions/sd-webui-rpg-diffusionmaster,https://github.com/YangLing0818/RPG-DiffusionMaster.git
