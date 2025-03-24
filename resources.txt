@@ -8,23 +8,17 @@ extensions/sd-webui-wd14-tagger,https://github.com/Akegarasu/sd-webui-wd14-tagge
 extensions/sd_forge_hypertile_svd_z123,https://github.com/licyk/sd_forge_hypertile_svd_z123.git
 extensions/stable-diffusion-webui-localization-zh_Hans,https://github.com/hanamizuki-ai/stable-diffusion-webui-localization-zh_Hans.git
 extensions/ultimate-upscale-for-automatic1111,https://github.com/Coyote-A/ultimate-upscale-for-automatic1111.git
-extensions/SD-WebUI-BatchCheckpointPrompt,https://github.com/h43lb1t0/SD-WebUI-BatchCheckpointPrompt.git
 extensions/sd-webui-segment-anything,https://github.com/continue-revolution/sd-webui-segment-anything.git
 extensions/stable-diffusion-webui-aesthetic-gradients,https://github.com/AUTOMATIC1111/stable-diffusion-webui-aesthetic-gradients.git
-extensions/DreamArtist-sd-webui-extension,https://github.com/7eu7d7/DreamArtist-sd-webui-extension.git
-extensions/custom-diffusion-webui,https://github.com/guaneec/custom-diffusion-webui.git
 extensions/multi-subject-render,https://github.com/Extraltodeus/multi-subject-render.git
-extensions/stable-diffusion-webui-sonar,https://github.com/Kahsolt/stable-diffusion-webui-sonar.git
 extensions/sd-webui-multiple-hypernetworks,https://github.com/antis0007/sd-webui-multiple-hypernetworks.git
 extensions/sd-webui-regional-prompter,https://github.com/hako-mikan/sd-webui-regional-prompter.git
 extensions/sd-webui-incantations,https://github.com/v0xie/sd-webui-incantations.git
 extensions/sd-webui-rpg-diffusionmaster,https://github.com/YangLing0818/RPG-DiffusionMaster.git
 extensions/sd-webui-agentattention,https://github.com/v0xie/sd-webui-agentattention.git
 extensions/test_my_prompt,https://github.com/Extraltodeus/test_my_prompt.git
-extensions/sd-webui-EasyPhoto,https://github.com/aigc-apps/sd-webui-EasyPhoto.git
 extensions/sd-webui-mov2mov,https://github.com/Scholar01/sd-webui-mov2mov.git
 extensions/adetailer,https://github.com/Bing-su/adetailer.git
-extensions/sd-webui-stablesr,https://github.com/pkuliyi2015/sd-webui-stablesr.git
 extensions/Civitai-Helper,https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper.git
 extensions/tagcomplete,https://github.com/DominikDoom/a1111-sd-webui-tagcomplete.git
 
