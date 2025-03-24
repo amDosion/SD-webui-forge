@@ -36,6 +36,25 @@ elif [ ! -d "$TARGET_DIR" ]; then
   echo "📥 Cloning WebUI → $TARGET_DIR"
   git clone "$REPO" "$TARGET_DIR"
   chmod +x "$TARGET_DIR/webui.sh"
+
+  echo "🔧 Patching requirements_versions.txt for PyTorch 2.6.0 compatibility..."
+  REQ_FILE="$TARGET_DIR/requirements_versions.txt"
+  touch "$REQ_FILE"
+
+  sed -i '/^torch/d' "$REQ_FILE"
+  echo "torch==2.6.0" >> "$REQ_FILE"
+
+  sed -i '/^xformers/d' "$REQ_FILE"
+  echo "xformers==0.0.25" >> "$REQ_FILE"
+
+  sed -i '/^diffusers/d' "$REQ_FILE"
+  echo "diffusers==0.31.0" >> "$REQ_FILE"
+
+  sed -i '/^transformers/d' "$REQ_FILE"
+  echo "transformers==4.46.1" >> "$REQ_FILE"
+
+  echo "✅ Patched dependencies:"
+  grep -E 'torch|xformers|diffusers|transformers' "$REQ_FILE"
 fi
 
 cd "$TARGET_DIR" || exit 1
@@ -47,7 +66,7 @@ if [ ! -d "venv" ]; then
   python3 -m venv venv
   source venv/bin/activate
   pip install --upgrade pip
-  pip install numpy==1.25.2 scikit-image==0.21.0 xformers gdown insightface onnx onnxruntime
+  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime
 
   if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
     pip install transformers accelerate diffusers
