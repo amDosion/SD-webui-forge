@@ -16,15 +16,6 @@ ENABLE_DOWNLOAD_TRANSFORMERS="${ENABLE_DOWNLOAD_TRANSFORMERS:-$ENABLE_DOWNLOAD_A
 
 export NO_TCMALLOC=1
 
-# ✅ 检查 ffmpeg
-if [ ! -x /usr/local/bin/ffmpeg ]; then
-  echo "📦 Installing embedded ffmpeg..."
-  cp /app/ffmpeg /usr/local/bin/ffmpeg
-  chmod +x /usr/local/bin/ffmpeg
-else
-  echo "✅ ffmpeg exists: $(/usr/local/bin/ffmpeg -version | head -n 1)"
-fi
-
 # ✅ WebUI clone 设置
 if [ "$UI" = "auto" ]; then
   TARGET_DIR="/app/webui/sd-webui"
