@@ -31,6 +31,7 @@ RUN chown -R webui:webui /app
 
 # 切换用户（WebUI 不允许 root）
 USER webui
+
 # ✅ 设置容器运行时工作目录
 WORKDIR /app/webui
 
