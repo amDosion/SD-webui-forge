@@ -35,12 +35,12 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
 # ====================================
 RUN echo "🔧 配置 NVIDIA CUDA 仓库..." && \
     CODENAME="ubuntu2204" && \
-    mkdir -p /etc/apt/keyrings && \
-    # 下载 CUDA 仓库密钥（新版推荐的密钥文件）
+    mkdir -p /usr/share/keyrings && \
+    # 下载 CUDA 仓库密钥，存放到 /usr/share/keyrings 中
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
-         | gpg --dearmor -o /etc/apt/keyrings/cuda-archive-keyring.gpg && \
-    # 配置 CUDA 仓库源（同时包含了 TensorRT 及其他相关包）
-    echo "deb [signed-by=/etc/apt/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
+         | gpg --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
+    # 配置 CUDA 仓库源，使用与基础镜像一致的密钥路径
+    echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
          > /etc/apt/sources.list.d/cuda.list && \
     echo "✅ NVIDIA 仓库配置完成"
 
