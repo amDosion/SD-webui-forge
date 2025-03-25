@@ -13,7 +13,7 @@ extensions/sd-webui-incantations,https://github.com/v0xie/sd-webui-incantations.
 extensions/sd-webui-rpg-diffusionmaster,https://github.com/YangLing0818/RPG-DiffusionMaster.git
 extensions/sd-webui-agentattention,https://github.com/v0xie/sd-webui-agentattention.git
 extensions/test_my_prompt,https://github.com/Extraltodeus/test_my_prompt.git
-extensions/sd-webui-mov2mov,https://github.com/Scholar01/sd-webui-mov2mov.git
+extensions/sd-webui-mov2mov,https://github.com/amDosion/sd-webui-mov2mov.git
 extensions/adetailer,https://github.com/Bing-su/adetailer.git
 extensions/Civitai-Helper,https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper.git
 extensions/tagcomplete,https://github.com/DominikDoom/a1111-sd-webui-tagcomplete.git
