@@ -8,10 +8,10 @@ RUN echo "🔧 正在设置时区为 $TZ..." && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     echo "✅ 时区已成功设置：$(date)"
 
-# ============================================
+# ====================================
 # 🚩 系统依赖安装 + CUDA 开发库安装
 # ============================================
-RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
+RUN echo -e "🔧 开始更新软件包及安装系统基础依赖...\n" && \
     apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         wget git git-lfs curl procps \
@@ -21,45 +21,44 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
         libgoogle-perftools-dev \
         apt-transport-https htop nano bsdmainutils \
         lsb-release software-properties-common && \
-    echo "✅ 基础系统依赖安装完成" && \
-    \
-    echo "🔧 正在安装 CUDA 12.6工具链和TensorFlow、PyTorch相关CUDA库依赖..." && \
+    echo -e "✅ 基础系统依赖安装完成\n" && \
+    echo -e "🔧 正在安装 CUDA 12.6工具链和TensorFlow、PyTorch相关CUDA库依赖...\n" && \
     apt-get install -y --no-install-recommends \
         cuda-compiler-12-6 \
         libcublas-12-6 libcublas-dev-12-6 && \
-    echo "✅ CUDA工具链及相关数学库安装完成" && \
+    echo -e "✅ CUDA工具链及相关数学库安装完成\n" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ====================================
 # 🚩 TensorRT 安装（匹配 CUDA 12.6）
 # ====================================
 # 第一步：配置 NVIDIA CUDA 仓库
-RUN echo "🔧 配置 NVIDIA CUDA 仓库..." && \
+RUN echo -e "🔧 配置 NVIDIA CUDA 仓库...\n" && \
     CODENAME="ubuntu2204" && \
     # 删除基础镜像中可能预置的重复 CUDA 源配置
     rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
     mkdir -p /usr/share/keyrings && \
-    echo "📥 正在下载 CUDA 仓库密钥..." && \
+    echo -e "📥 正在下载 CUDA 仓库密钥...\n" && \
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
          | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
-    echo "📜 添加 CUDA 仓库源到 /etc/apt/sources.list.d/cuda.list ..." && \
+    echo -e "📜 添加 CUDA 仓库源到 /etc/apt/sources.list.d/cuda.list ...\n" && \
     echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
          > /etc/apt/sources.list.d/cuda.list && \
-    echo "✅ NVIDIA 仓库配置完成"
+    echo -e "✅ NVIDIA 仓库配置完成\n"
 
 # 第二步：安装 TensorRT（适配 CUDA 12.6）
-RUN echo "🔧 正在安装 TensorRT（适配 CUDA 12.6）..." && \
+# 为避免版本匹配问题，建议移除版本约束，安装仓库中最新可用的 TensorRT 相关包
+RUN echo -e "🔧 正在安装 TensorRT（适配 CUDA 12.6）...\n" && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        libnvinfer8=8.6.1-1+cuda12.6 \
-        libnvinfer-plugin8=8.6.1-1+cuda12.6 \
-        libnvparsers8=8.6.1-1+cuda12.6 \
-        libnvonnxparsers8=8.6.1-1+cuda12.6 \
-        libnvinfer-bin=8.6.1-1+cuda12.6 \
-        python3-libnvinfer=8.6.1-1+cuda12.6 && \
-    echo "✅ TensorRT 8.6.1（CUDA 12.6 兼容版）安装完成" && \
+        libnvinfer8 \
+        libnvinfer-plugin8 \
+        libnvparsers8 \
+        libnvonnxparsers8 \
+        libnvinfer-bin \
+        python3-libnvinfer && \
+    echo -e "✅ TensorRT 安装完成\n" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
 
 # =============================
 # 🚩 验证CUDA和TensorRT
