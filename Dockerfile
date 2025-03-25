@@ -47,7 +47,7 @@ RUN echo -e "🔧 配置 NVIDIA CUDA 仓库...\n" && \
     echo -e "✅ NVIDIA 仓库配置完成\n"
 
 # 第二步：安装 TensorRT（适配 CUDA 12.6）
-# 为避免版本匹配问题，建议移除版本约束，安装仓库中最新可用的 TensorRT 相关包
+# 这里采用不指定版本号的方式，以安装仓库中最新可用的 TensorRT 相关包
 RUN echo -e "🔧 正在安装 TensorRT（适配 CUDA 12.6）...\n" && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -58,7 +58,7 @@ RUN echo -e "🔧 正在安装 TensorRT（适配 CUDA 12.6）...\n" && \
         libnvinfer-bin \
         python3-libnvinfer && \
     echo -e "✅ TensorRT 安装完成\n" && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # =============================
 # 🚩 验证CUDA和TensorRT
