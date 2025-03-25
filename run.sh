@@ -131,14 +131,16 @@ add_or_replace_requirement() {
   fi
 }
 
+# ✅ 强制锁定依赖版本（推荐组合）
 add_or_replace_requirement "torch" "2.6.0"
 add_or_replace_requirement "xformers" "0.0.29.post2"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
 add_or_replace_requirement "torchsde" "0.2.6"
-add_or_replace_requirement "protobuf" "4.25.3"  # 替代3.20，更适配tf/torch
-add_or_replace_requirement "pydantic" "2.6.4"   # 或与你代码兼容的稳定版本
+add_or_replace_requirement "protobuf" "4.25.3"
+add_or_replace_requirement "pydantic" "2.6.4"
+add_or_replace_requirement "open-clip-torch" "2.24.0"
 
 check_gitpython_version() {
   local required_version="3.1.41"
@@ -152,9 +154,8 @@ check_gitpython_version() {
 
 check_gitpython_version
 
-
 echo "📦 完整依赖列表如下："
-grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic)=' "$REQ_FILE" | sort | column -t -s '='
+grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort | column -t -s '='
 
 # ---------------------------------------------------
 # Python 虚拟环境
