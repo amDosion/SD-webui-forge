@@ -33,27 +33,33 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
 # ====================================
 # 🚩 TensorRT 安装（匹配 CUDA 12.6）
 # ====================================
+# 第一步：配置 NVIDIA CUDA 仓库
 RUN echo "🔧 配置 NVIDIA CUDA 仓库..." && \
     CODENAME="ubuntu2204" && \
+    # 删除基础镜像中可能预置的重复 CUDA 源配置
+    rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
     mkdir -p /usr/share/keyrings && \
+    echo "📥 正在下载 CUDA 仓库密钥..." && \
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
          | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
+    echo "📜 添加 CUDA 仓库源到 /etc/apt/sources.list.d/cuda.list ..." && \
     echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
          > /etc/apt/sources.list.d/cuda.list && \
     echo "✅ NVIDIA 仓库配置完成"
 
-# 安装适配 CUDA 12.6 的 TensorRT（使用模糊版本号避免硬编码）
-RUN echo "🔧 正在安装 TensorRT（适配CUDA 12.6）..." && \
+# 第二步：安装 TensorRT（适配 CUDA 12.6）
+RUN echo "🔧 正在安装 TensorRT（适配 CUDA 12.6）..." && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        libnvinfer8=8.6.1.*-1+cuda12.6 \
-        libnvinfer-plugin8=8.6.1.*-1+cuda12.6 \
-        libnvparsers8=8.6.1.*-1+cuda12.6 \
-        libnvonnxparsers8=8.6.1.*-1+cuda12.6 \
-        libnvinfer-bin=8.6.1.*-1+cuda12.6 \
-        python3-libnvinfer=8.6.1.*-1+cuda12.6 && \
+        libnvinfer8=8.6.1-1+cuda12.6 \
+        libnvinfer-plugin8=8.6.1-1+cuda12.6 \
+        libnvparsers8=8.6.1-1+cuda12.6 \
+        libnvonnxparsers8=8.6.1-1+cuda12.6 \
+        libnvinfer-bin=8.6.1-1+cuda12.6 \
+        python3-libnvinfer=8.6.1-1+cuda12.6 && \
     echo "✅ TensorRT 8.6.1（CUDA 12.6 兼容版）安装完成" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # =============================
 # 🚩 验证CUDA和TensorRT
