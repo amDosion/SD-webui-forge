@@ -133,7 +133,7 @@ add_or_replace_requirement() {
 
 # ✅ 强制锁定依赖版本（推荐组合）
 add_or_replace_requirement "torch" "2.6.0"
-add_or_replace_requirement "xformers" "0.0.29.post3"
+add_or_replace_requirement "xformers" "0.0.29.post2"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
@@ -170,17 +170,11 @@ if [ ! -x "venv/bin/activate" ]; then
   source venv/bin/activate
   pip install --upgrade pip
 
-echo "📥 安装主依赖 (详细日志启用)..."
-PIP_LOG_FILE="/app/webui/pip-install-main.log"
-pip install -vv -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 | tee "$PIP_LOG_FILE"
-echo "📄 pip 主依赖安装日志已保存到: $PIP_LOG_FILE"
+  echo "📥 安装主依赖..."
+  pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL"
 
-
-echo "📥 安装额外依赖 (详细日志启用)..."
-PIP_EXTRA_LOG_FILE="/app/webui/pip-install-extra.log"
-pip install -vv numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime 2>&1 | tee "$PIP_EXTRA_LOG_FILE"
-echo "📄 pip 额外依赖安装日志已保存到: $PIP_EXTRA_LOG_FILE"
-
+  echo "📥 安装额外依赖..."
+  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime
 
   if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
     pip install transformers accelerate diffusers
@@ -196,22 +190,23 @@ echo "🧠 检测到 CPU: ${CPU_VENDOR}"
 if [[ -n "$AVX2_SUPPORTED" ]]; then
   echo "✅ 检测到 AVX2 指令集"
 
-  if [[ "$CPU_VENDOR" == "AuthenticAMD" ]]; then
-    echo "🔧 AMD + AVX2 → 使用 tensorflow-cpu==2.11.0"
-    pip uninstall -y tensorflow tensorflow-cpu || true
-    pip install tensorflow-cpu==2.11.0
-  elif [[ "$CPU_VENDOR" == "GenuineIntel" ]]; then
-    echo "🔧 Intel + AVX2 → 使用 tensorflow-cpu==2.11.0"
-    pip uninstall -y tensorflow tensorflow-cpu || true
-    pip install tensorflow-cpu==2.11.0
+  echo "🔍 检测并安装 TensorFlow（GPU 优先）..."
+  pip uninstall -y tensorflow tensorflow-cpu || true
+
+  if command -v nvidia-smi &>/dev/null; then
+    echo "🧠 检测到 GPU，尝试安装 TensorFlow GPU 版本（支持 Python 3.11）"
+    pip install tensorflow==2.16.1
   else
-    echo "⚠️ 未知厂商 + AVX2 → fallback 到 tensorflow==2.11.0"
-    pip install tensorflow==2.11.0
+    echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.16.1（兼容 Python 3.11）"
+    pip install tensorflow-cpu==2.16.1
   fi
 
+  echo "🧪 验证 TensorFlow 是否识别 GPU："
+  python3 -c "import tensorflow as tf; print('✅ 可用 GPU:', tf.config.list_physical_devices('GPU'))" || echo "⚠️ 无法识别 GPU"
+
 else
-  echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow==2.11.0"
-  pip install tensorflow==2.11.0
+  echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow-cpu==2.16.1"
+  pip install tensorflow-cpu==2.16.1
 fi
 
   deactivate
