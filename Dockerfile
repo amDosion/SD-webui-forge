@@ -7,7 +7,7 @@ ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # ====================================
-# 🚩 系统依赖安装 + Python环境 + 构建工具
+# 🚩 系统依赖 + Python 环境 + 常用库
 # ====================================
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -24,10 +24,10 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ====================================
-# 🚩 安装 PyTorch 2.6.0 (CUDA 12.8.1)
+# 🚩 安装 PyTorch（兼容 CUDA 12.8 的版本）
 # ====================================
 RUN pip3 install --upgrade pip && \
-    pip3 install torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 # ====================================
 # 🚩 安装 TensorRT（匹配 CUDA 12.8）
@@ -47,7 +47,7 @@ RUN CODENAME="ubuntu2204" && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # =============================
-# 🚩 验证CUDA和TensorRT
+# 🚩 验证 CUDA 和 TensorRT
 # =============================
 RUN echo "🔍 CUDA 编译器版本：" && nvcc --version && \
     echo "🔍 TensorRT 安装包：" && dpkg -l | grep -E "libnvinfer|libnvparsers" && \
