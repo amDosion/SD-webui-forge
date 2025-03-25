@@ -19,7 +19,8 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
         xvfb build-essential cmake bc \
         libgoogle-perftools-dev \
-        apt-transport-https htop nano bsdmainutils && \
+        apt-transport-https htop nano bsdmainutils \
+        lsb-release software-properties-common && \
     echo "✅ 基础系统依赖安装完成" && \
     \
     echo "🔧 正在安装 CUDA 12.6工具链和TensorFlow、PyTorch相关CUDA库依赖..." && \
@@ -32,31 +33,42 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
 # ====================================
 # 🚩 TensorRT 安装（匹配 CUDA 12.6）
 # ====================================
-# 添加NVIDIA Machine Learning仓库以获取TensorRT
-RUN echo "🔧 正在配置NVIDIA CUDA和Machine Learning仓库..." && \
-    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub && \
-    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
-    echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/nvidia-ml.list
+# 动态获取系统版本（适配 Ubuntu 22.04）
+RUN echo "🔧 配置 NVIDIA CUDA 和 Machine Learning 仓库..." && \
+    DISTRO=$(lsb_release -si | tr '[:upper:]' '[:lower:]') && \
+    CODENAME=$(lsb_release -cs) && \
+    # 添加 CUDA 仓库密钥
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}${CODENAME}/x86_64/3bf863cc.pub \
+        | gpg --dearmor -o /etc/apt/keyrings/nvidia-cuda-keyring.gpg && \
+    # 添加 Machine Learning 仓库密钥
+    curl -fsSL https://developer.download.nvidia.com/compute/machine-learning/repos/${DISTRO}${CODENAME}/x86_64/7fa2af80.pub \
+        | gpg --dearmor -o /etc/apt/keyrings/nvidia-ml-keyring.gpg && \
+    # 配置仓库源
+    echo "deb [signed-by=/etc/apt/keyrings/nvidia-cuda-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}${CODENAME}/x86_64/ /" \
+        > /etc/apt/sources.list.d/cuda.list && \
+    echo "deb [signed-by=/etc/apt/keyrings/nvidia-ml-keyring.gpg] https://developer.download.nvidia.com/compute/machine-learning/repos/${DISTRO}${CODENAME}/x86_64/ /" \
+        > /etc/apt/sources.list.d/nvidia-ml.list && \
+    echo "✅ NVIDIA 仓库配置完成"
 
-# 安装适配CUDA 12.1+的TensorRT 8.6.1（最新稳定版）
+# 安装适配 CUDA 12.6 的 TensorRT（使用模糊版本号避免硬编码）
 RUN echo "🔧 正在安装 TensorRT（适配CUDA 12.6）..." && \
-    apt-get update -o APT::Sandbox::User=root && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-    libnvinfer8=8.6.1.6-1+cuda12.1 \
-    libnvinfer-plugin8=8.6.1.6-1+cuda12.1 \
-    libnvparsers8=8.6.1.6-1+cuda12.1 \
-    libnvonnxparsers8=8.6.1.6-1+cuda12.1 \
-    libnvinfer-bin=8.6.1.6-1+cuda12.1 \
-    python3-libnvinfer=8.6.1.6-1+cuda12.1 && \
-    echo "✅ TensorRT 8.6.1（CUDA 12.1+兼容版）安装完成" && \
+        libnvinfer8=8.6.1.*-1+cuda12.6 \
+        libnvinfer-plugin8=8.6.1.*-1+cuda12.6 \
+        libnvparsers8=8.6.1.*-1+cuda12.6 \
+        libnvonnxparsers8=8.6.1.*-1+cuda12.6 \
+        libnvinfer-bin=8.6.1.*-1+cuda12.6 \
+        python3-libnvinfer=8.6.1.*-1+cuda12.6 && \
+    echo "✅ TensorRT 8.6.1（CUDA 12.6 兼容版）安装完成" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
 
 # =============================
 # 🚩 验证CUDA和TensorRT
 # =============================
 RUN echo "🔍 验证CUDA编译器..." && nvcc --version && \
-    echo "🔍 检查TensorRT版本..." && dpkg -l | grep -E "nvinfer|nvparsers" && \
+    echo "🔍 检查TensorRT版本..." && dpkg -l | grep -E "libnvinfer|libnvparsers" && \
     echo "✅ 环境验证通过"
 
 # =============================
