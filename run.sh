@@ -133,7 +133,7 @@ add_or_replace_requirement() {
 
 # ✅ 强制锁定依赖版本（推荐组合）
 add_or_replace_requirement "torch" "2.6.0"
-add_or_replace_requirement "xformers" "0.0.29.post2"
+add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
