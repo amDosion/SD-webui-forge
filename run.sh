@@ -32,12 +32,35 @@ else
   exit 1
 fi
 
-# CUDA 检查
+# CUDA & GPU 检查
 if command -v nvidia-smi &>/dev/null; then
-  echo "✅ GPU 可见: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1)"
+  echo "✅ nvidia-smi 检测成功，GPU 信息如下："
+
+  echo "--------------------------------------------------"
+  GPU_INFO=$(nvidia-smi --query-gpu=name,driver_version,cuda_version,temperature.gpu,utilization.gpu,memory.total,memory.used --format=csv,noheader,nounits)
+  echo "$GPU_INFO" | while IFS=',' read -r name driver cuda temp util mem_total mem_used; do
+    mem_total_trimmed=$(echo $mem_total | xargs)
+    mem_used_trimmed=$(echo $mem_used | xargs)
+    usage_pct=$(( 100 * mem_used_trimmed / mem_total_trimmed ))
+
+    # 绘制 ASCII 条形图
+    bar_length=30
+    used_bar_count=$(( usage_pct * bar_length / 100 ))
+    free_bar_count=$(( bar_length - used_bar_count ))
+    used_bar=$(printf "%0.s█" $(seq 1 $used_bar_count))
+    free_bar=$(printf "%0.s░" $(seq 1 $free_bar_count))
+
+    echo "🖼️ GPU型号: $name"
+    echo "🧠 驱动版本: $driver    CUDA版本: $cuda"
+    echo "🌡️ 温度: ${temp}°C      利用率: ${util}%"
+    echo "🧮 显存使用: ${mem_used_trimmed}MiB / ${mem_total_trimmed}MiB  (${usage_pct}%)"
+    echo "📊 使用率图: [${used_bar}${free_bar}]"
+  done
+  echo "--------------------------------------------------"
 else
-  echo "⚠️ nvidia-smi 不可用，未检测到 GPU 或未安装 NVIDIA 驱动"
+  echo "⚠️ 未检测到 nvidia-smi（可能无 GPU 或驱动未安装）"
 fi
+
 
 # 容器检测
 if [ -f "/.dockerenv" ]; then
@@ -133,7 +156,7 @@ add_or_replace_requirement() {
 
 # ✅ 强制锁定依赖版本（推荐组合）
 add_or_replace_requirement "torch" "2.6.0"
-add_or_replace_requirement "xformers" "0.0.29.post3"
+add_or_replace_requirement "xformers" "0.0.29.post2"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
