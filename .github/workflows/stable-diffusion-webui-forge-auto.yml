@@ -46,9 +46,18 @@ jobs:
           cat auto.sha >> .sha_cache
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
+      - name: 🧹 Free up Disk Space (for TensorRT)
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          echo "🧹 Removing unused preinstalled tools to free space..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          df -h
+
       - name: 🛠 Setup Docker Buildx
         if: steps.compare.outputs.changed == 'true'
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: 🔐 Login to DockerHub
         if: steps.compare.outputs.changed == 'true'
@@ -57,7 +66,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 🐳 Build & Push sd-webui-auto Image
+      - name: 🐳 Build & Push updated image
         if: steps.compare.outputs.changed == 'true'
         run: |
           docker buildx build \
