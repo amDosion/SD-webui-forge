@@ -16,7 +16,8 @@ RUN apt-get update && apt-get upgrade -y && \
     libglib2.0-0 libsm6 libxrender1 libxext6 \
     xvfb build-essential cmake bc \
     libgoogle-perftools-dev \
-    apt-transport-https htop nano && \
+    apt-transport-https htop nano \
+    bsdmainutils && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ========================
