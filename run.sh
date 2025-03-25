@@ -170,11 +170,17 @@ if [ ! -x "venv/bin/activate" ]; then
   source venv/bin/activate
   pip install --upgrade pip
 
-  echo "📥 安装主依赖..."
-  pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL"
+echo "📥 安装主依赖 (详细日志启用)..."
+PIP_LOG_FILE="/app/webui/pip-install-main.log"
+pip install -vv -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 | tee "$PIP_LOG_FILE"
+echo "📄 pip 主依赖安装日志已保存到: $PIP_LOG_FILE"
 
-  echo "📥 安装额外依赖..."
-  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime
+
+echo "📥 安装额外依赖 (详细日志启用)..."
+PIP_EXTRA_LOG_FILE="/app/webui/pip-install-extra.log"
+pip install -vv numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime 2>&1 | tee "$PIP_EXTRA_LOG_FILE"
+echo "📄 pip 额外依赖安装日志已保存到: $PIP_EXTRA_LOG_FILE"
+
 
   if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
     pip install transformers accelerate diffusers
