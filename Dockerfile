@@ -42,27 +42,23 @@ RUN pip3 install --upgrade pip && \
 # 🚩 安装 TensorRT（CUDA 12.6 专用）— 拆分安装 + 检查是否重复安装 + 锁定版本
 # ====================================
 RUN CODENAME="ubuntu2204" && \
-    echo "🔧 配置 NVIDIA CUDA 仓库 for CUDA 12.6..." && \
+    echo "🔧 添加 NVIDIA CUDA 仓库..." && \
     rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
     mkdir -p /usr/share/keyrings && \
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
-        | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
+         | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
-        > /etc/apt/sources.list.d/cuda.list && \
+         > /etc/apt/sources.list.d/cuda.list && \
     apt-get update && \
-
-    # 💡 需要安装的 TensorRT 运行时包（准确锁定版本 +cuda12.6）
     for pkg in \
-      "libnvinfer8=8.6.1.6-1+cuda12.6" \
-      "libnvinfer-plugin8=8.6.1.6-1+cuda12.6" \
-      "libnvparsers8=8.6.1.6-1+cuda12.6" \
-      "libnvonnxparsers8=8.6.1.6-1+cuda12.6" \
-      "libnvinfer-bin=8.6.1.6-1+cuda12.6" \
-      "python3-libnvinfer=8.6.1-1+cuda12.6"; \
-    do \
-        pkg_name=$(echo $pkg | cut -d= -f1); \
-        if dpkg -s "$pkg_name" >/dev/null 2>&1; then \
-            echo "✅ 已安装：$pkg_name，跳过"; \
+        libnvinfer8 \
+        libnvinfer-plugin8 \
+        libnvparsers8 \
+        libnvonnxparsers8 \
+        libnvinfer-bin \
+        python3-libnvinfer; do \
+        if dpkg -s "$pkg" >/dev/null 2>&1; then \
+            echo "✅ 已安装：$pkg，跳过"; \
         else \
             echo "📦 安装：$pkg"; \
             apt-get install -y --no-install-recommends "$pkg"; \
