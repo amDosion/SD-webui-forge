@@ -12,6 +12,55 @@ echo "🚀 [0] 启动脚本 Stable Diffusion WebUI"
 echo "=================================================="
 
 # ---------------------------------------------------
+# 系统环境自检（新增模块）
+# ---------------------------------------------------
+echo "🛠️  [0.5] 系统环境自检..."
+
+# Python 检查
+if command -v python3 &>/dev/null; then
+  echo "✅ Python3 版本: $(python3 --version)"
+else
+  echo "❌ 未找到 Python3，脚本将无法运行！"
+  exit 1
+fi
+
+# pip 检查
+if command -v pip3 &>/dev/null; then
+  echo "✅ pip3 版本: $(pip3 --version)"
+else
+  echo "❌ pip3 未安装！请在 Dockerfile 中添加 python3-pip"
+  exit 1
+fi
+
+# CUDA 检查
+if command -v nvidia-smi &>/dev/null; then
+  echo "✅ GPU 可见: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1)"
+else
+  echo "⚠️ nvidia-smi 不可用，未检测到 GPU 或未安装 NVIDIA 驱动"
+fi
+
+# 容器检测
+if [ -f "/.dockerenv" ]; then
+  echo "📦 正在容器中运行"
+else
+  echo "🖥️ 非容器环境"
+fi
+
+# 当前用户
+echo "👤 当前用户: $(whoami)"
+
+# 目录写权限
+if [ -w "/app/webui" ]; then
+  echo "✅ /app/webui 可写"
+else
+  echo "❌ /app/webui 不可写，可能会导致运行失败"
+  exit 1
+fi
+
+echo "✅ 系统环境自检通过"
+
+
+# ---------------------------------------------------
 # 环境变量设置
 # ---------------------------------------------------
 echo "🔧 [1] 解析 UI 与 ARGS 环境变量..."
@@ -88,9 +137,24 @@ add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
 add_or_replace_requirement "torchsde" "0.2.6"
+add_or_replace_requirement "protobuf" "4.25.3"  # 替代3.20，更适配tf/torch
+add_or_replace_requirement "pydantic" "2.6.4"   # 或与你代码兼容的稳定版本
+
+check_gitpython_version() {
+  local required_version="3.1.41"
+  if python3 -c "import git, sys; from packaging import version; sys.exit(0) if version.parse(git.__version__) >= version.parse('$required_version') else sys.exit(1)" 2>/dev/null; then
+    echo "✅ GitPython >= $required_version 已存在，跳过"
+  else
+    echo "🔧 安装/升级 GitPython 到 $required_version"
+    add_or_replace_requirement "GitPython" "$required_version"
+  fi
+}
+
+check_gitpython_version
+
 
 echo "📦 完整依赖列表如下："
-grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde)=' "$REQ_FILE"
+grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic)=' "$REQ_FILE" | sort | column -t -s '='
 
 # ---------------------------------------------------
 # Python 虚拟环境
@@ -115,14 +179,33 @@ if [ ! -x "venv/bin/activate" ]; then
     pip install transformers accelerate diffusers
   fi
 
-  if grep -q avx2 /proc/cpuinfo; then
-    echo "✅ 检测到 AVX2，安装 tensorflow-cpu-avx2..."
+echo "🔍 正在检测 CPU 支持情况..."
+
+CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}')
+AVX2_SUPPORTED=$(grep -m 1 avx2 /proc/cpuinfo || true)
+
+echo "🧠 检测到 CPU: ${CPU_VENDOR}"
+
+if [[ -n "$AVX2_SUPPORTED" ]]; then
+  echo "✅ 检测到 AVX2 指令集"
+
+  if [[ "$CPU_VENDOR" == "AuthenticAMD" ]]; then
+    echo "🔧 AMD + AVX2 → 使用 tensorflow-cpu==2.11.0"
     pip uninstall -y tensorflow tensorflow-cpu || true
-    pip install tensorflow-cpu-avx2==2.11.0
-  else
-    echo "⚠️ 无 AVX2，使用 fallback: tensorflow-cpu"
     pip install tensorflow-cpu==2.11.0
+  elif [[ "$CPU_VENDOR" == "GenuineIntel" ]]; then
+    echo "🔧 Intel + AVX2 → 使用 tensorflow-cpu==2.11.0"
+    pip uninstall -y tensorflow tensorflow-cpu || true
+    pip install tensorflow-cpu==2.11.0
+  else
+    echo "⚠️ 未知厂商 + AVX2 → fallback 到 tensorflow==2.11.0"
+    pip install tensorflow==2.11.0
   fi
+
+else
+  echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow==2.11.0"
+  pip install tensorflow==2.11.0
+fi
 
   deactivate
 else
