@@ -32,17 +32,25 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
 # ====================================
 # 🚩 TensorRT 安装（匹配 CUDA 12.6）
 # ====================================
-RUN echo "🔧 正在安装 TensorRT（CUDA 12.6）相关库..." && \
-    apt-get update && apt-get install -y --no-install-recommends \
-        libnvinfer8=8.6.1-1+cuda12.0 \
-        libnvinfer-plugin8=8.6.1-1+cuda12.0 \
-        libnvparsers8=8.6.1-1+cuda12.0 \
-        libnvonnxparsers8=8.6.1-1+cuda12.0 \
-        libnvinfer-bin=8.6.1-1+cuda12.0 \
-        python3-libnvinfer=8.6.1-1+cuda12.0 \
-        python3-libnvinfer-dev=8.6.1-1+cuda12.0 && \
-    echo "✅ TensorRT 库安装完成" && \
+# 添加NVIDIA Machine Learning仓库以获取TensorRT
+RUN echo "🔧 正在配置NVIDIA CUDA和Machine Learning仓库..." && \
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/cuda.list && \
+    echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/ /" > /etc/apt/sources.list.d/nvidia-ml.list
+
+# 安装适配CUDA 12.1+的TensorRT 8.6.1（最新稳定版）
+RUN echo "🔧 正在安装 TensorRT（适配CUDA 12.6）..." && \
+    apt-get update -o APT::Sandbox::User=root && \
+    apt-get install -y --no-install-recommends \
+    libnvinfer8=8.6.1.6-1+cuda12.1 \
+    libnvinfer-plugin8=8.6.1.6-1+cuda12.1 \
+    libnvparsers8=8.6.1.6-1+cuda12.1 \
+    libnvonnxparsers8=8.6.1.6-1+cuda12.1 \
+    libnvinfer-bin=8.6.1.6-1+cuda12.1 \
+    python3-libnvinfer=8.6.1.6-1+cuda12.1 && \
+    echo "✅ TensorRT 8.6.1（CUDA 12.1+兼容版）安装完成" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # =============================
 # 🚩 检查 CUDA 编译器版本
