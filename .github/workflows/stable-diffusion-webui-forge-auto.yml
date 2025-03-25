@@ -66,13 +66,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 🐳 Build & Push updated image
+      - name: 📅 Get Build Timestamp
+        if: steps.compare.outputs.changed == 'true'
+        id: build_time
+        run: echo "tag=$(date -u +'%Y-%m-%d-%H%M')" >> "$GITHUB_OUTPUT"
+
+      - name: 🐳 Build & Push with Timestamp Tag
         if: steps.compare.outputs.changed == 'true'
         run: |
+          TAG=${{ steps.build_time.outputs.tag }}
+          echo "📦 Building tag: $DOCKER_IMAGE:$TAG"
+          
           docker buildx build \
             --platform linux/amd64 \
             --no-cache \
-            -t $DOCKER_IMAGE:latest \
+            -t $DOCKER_IMAGE:$TAG \
             --push .
 
       - name: 🧹 Clean temp files
