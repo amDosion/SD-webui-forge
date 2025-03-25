@@ -33,21 +33,15 @@ RUN echo "🔧 开始更新软件包及安装系统基础依赖..." && \
 # ====================================
 # 🚩 TensorRT 安装（匹配 CUDA 12.6）
 # ====================================
-# 强制指定 Ubuntu 22.04 对应的仓库路径
-RUN echo "🔧 配置 NVIDIA CUDA 和 Machine Learning 仓库..." && \
+RUN echo "🔧 配置 NVIDIA CUDA 仓库..." && \
     CODENAME="ubuntu2204" && \
     mkdir -p /etc/apt/keyrings && \
-    # 下载 CUDA 仓库密钥（使用 .com 域名和新版密钥文件）
+    # 下载 CUDA 仓库密钥（新版推荐的密钥文件）
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
          | gpg --dearmor -o /etc/apt/keyrings/cuda-archive-keyring.gpg && \
-    # 下载 Machine Learning 仓库密钥（使用 .com 域名和新版密钥文件）
-    curl -fsSL https://developer.download.nvidia.com/compute/machine-learning/repos/${CODENAME}/x86_64/nvidia-machine-learning-keyring.gpg \
-         | gpg --dearmor -o /etc/apt/keyrings/nvidia-machine-learning-keyring.gpg && \
-    # 配置仓库源
+    # 配置 CUDA 仓库源（同时包含了 TensorRT 及其他相关包）
     echo "deb [signed-by=/etc/apt/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
          > /etc/apt/sources.list.d/cuda.list && \
-    echo "deb [signed-by=/etc/apt/keyrings/nvidia-machine-learning-keyring.gpg] https://developer.download.nvidia.com/compute/machine-learning/repos/${CODENAME}/x86_64/ /" \
-         > /etc/apt/sources.list.d/nvidia-ml.list && \
     echo "✅ NVIDIA 仓库配置完成"
 
 
