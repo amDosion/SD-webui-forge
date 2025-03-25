@@ -156,7 +156,7 @@ add_or_replace_requirement() {
 
 # ✅ 强制锁定依赖版本（推荐组合）
 add_or_replace_requirement "torch" "2.6.0"
-add_or_replace_requirement "xformers" "0.0.29.post2"
+add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
 add_or_replace_requirement "torchdiffeq" "0.2.3"
@@ -229,18 +229,18 @@ if [[ -n "$AVX2_SUPPORTED" ]]; then
 
   if command -v nvidia-smi &>/dev/null; then
     echo "🧠 检测到 GPU，尝试安装 TensorFlow GPU 版本（支持 Python 3.11）"
-    pip install tensorflow==2.16.1
+    pip install tensorflow==2.19.0
   else
-    echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.16.1（兼容 Python 3.11）"
-    pip install tensorflow-cpu==2.16.1
+    echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.19.0（兼容 Python 3.11）"
+    pip install tensorflow-cpu==2.19.0
   fi
 
   echo "🧪 验证 TensorFlow 是否识别 GPU："
   python3 -c "import tensorflow as tf; print('✅ 可用 GPU:', tf.config.list_physical_devices('GPU'))" || echo "⚠️ 无法识别 GPU"
 
 else
-  echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow-cpu==2.16.1"
-  pip install tensorflow-cpu==2.16.1
+  echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow-cpu==2.19.0"
+  pip install tensorflow-cpu==2.19.0
 fi
 
   deactivate
