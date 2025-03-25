@@ -214,6 +214,9 @@ else
   echo "✅ venv 已存在，跳过创建和安装"
 fi
 
+echo "🐍 [6.1] 激活虚拟环境以安装TensorFlow..."
+source venv/bin/activate
+
 echo "🔍 正在检测 CPU 支持情况..."
 
 CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}')
@@ -243,16 +246,14 @@ else
   pip install tensorflow-cpu==2.19.0
 fi
 
-  deactivate
-else
-  echo "✅ venv 已存在，跳过安装"
-fi
+deactivate
 
 # ---------------------------------------------------
 # 创建目录
 # ---------------------------------------------------
 echo "📁 [7] 初始化项目目录结构..."
 mkdir -p extensions models models/ControlNet outputs
+
 
 # ---------------------------------------------------
 # 网络测试
