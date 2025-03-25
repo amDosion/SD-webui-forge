@@ -191,17 +191,28 @@ if [ ! -x "venv/bin/activate" ]; then
   echo "📦 创建 venv..."
   python3 -m venv venv
   source venv/bin/activate
-  pip install --upgrade pip
 
-  echo "📥 安装主依赖..."
-  pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL"
+  echo "📥 升级 pip..."
+  pip install --upgrade pip | tee /app/webui/logs/pip_upgrade.log
 
-  echo "📥 安装额外依赖..."
-  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime
+  echo "📥 安装主依赖 requirements_versions.txt ..."
+  pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" \
+    | tee /app/webui/logs/pip_requirements.log
+
+  echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
+  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime \
+    | tee /app/webui/logs/pip_extras.log
 
   if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
-    pip install transformers accelerate diffusers
+    echo "📥 安装 transformers 相关组件（transformers, accelerate, diffusers）..."
+    pip install transformers accelerate diffusers | tee /app/webui/logs/pip_transformers.log
   fi
+
+  echo "📦 venv 安装完成 ✅"
+  deactivate
+else
+  echo "✅ venv 已存在，跳过创建和安装"
+fi
 
 echo "🔍 正在检测 CPU 支持情况..."
 
