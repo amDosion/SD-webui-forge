@@ -53,11 +53,11 @@ RUN echo "🔧 正在安装 TensorRT（适配CUDA 12.6）..." && \
 
 
 # =============================
-# 🚩 检查 CUDA 编译器版本
+# 🚩 验证CUDA和TensorRT
 # =============================
-RUN echo "🔍 CUDA 编译器(nvcc)版本检查：" && \
-    nvcc --version && \
-    echo "✅ CUDA 编译器检查完成"
+RUN echo "🔍 验证CUDA编译器..." && nvcc --version && \
+    echo "🔍 检查TensorRT版本..." && dpkg -l | grep -E "nvinfer|nvparsers" && \
+    echo "✅ 环境验证通过"
 
 # =============================
 # 🚩 创建非 root 用户 webui
