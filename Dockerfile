@@ -1,13 +1,13 @@
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
 
 # ===============================
-# 🚩 时区设置（上海）
+# 🚩 设置时区（上海）
 # ===============================
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # ====================================
-# 🚩 系统依赖 + Python 环境 + 常用库
+# 🚩 系统依赖 + Python 环境 + 构建工具
 # ====================================
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -24,13 +24,13 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ====================================
-# 🚩 安装 PyTorch（兼容 CUDA 12.8 的版本）
+# 🚩 安装 PyTorch（匹配 CUDA 12.6）
 # ====================================
 RUN pip3 install --upgrade pip && \
-    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 
 # ====================================
-# 🚩 安装 TensorRT（匹配 CUDA 12.8）
+# 🚩 安装 TensorRT（匹配 CUDA 12.6）
 # ====================================
 RUN CODENAME="ubuntu2204" && \
     rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
@@ -47,11 +47,11 @@ RUN CODENAME="ubuntu2204" && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # =============================
-# 🚩 验证 CUDA 和 TensorRT
+# 🚩 验证 CUDA 和 TensorRT 环境
 # =============================
 RUN echo "🔍 CUDA 编译器版本：" && nvcc --version && \
     echo "🔍 TensorRT 安装包：" && dpkg -l | grep -E "libnvinfer|libnvparsers" && \
-    echo "✅ 环境验证通过"
+    python3 -c "import torch; print('torch:', torch.__version__, '| CUDA:', torch.version.cuda)"
 
 # =============================
 # 🚩 创建非 root 用户 webui
@@ -67,24 +67,4 @@ RUN chmod +x /app/run.sh && \
     mkdir -p /app/webui && chown -R webui:webui /app/webui
 
 # =============================
-# 🚩 切换至非 root 用户 webui
-# =============================
-USER webui
-WORKDIR /app/webui
-RUN echo "✅ 已成功切换至用户：$(whoami)" && \
-    echo "✅ 当前工作目录为：$(pwd)"
-
-# =============================
-# 🚩 环境基础自检（Python与Pip）
-# =============================
-RUN echo "🔎 Python 环境自检开始..." && \
-    python3 --version && \
-    pip3 --version && \
-    python3 -m venv --help > /dev/null && \
-    echo "✅ Python、pip 和 venv 已正确安装并通过检查" || \
-    echo "⚠️ Python 环境完整性出现问题，请排查！"
-
-# =============================
-# 🚩 设置容器启动入口
-# =============================
-ENTRYPOINT ["/app/run.sh"]
+# 🚩 切换至非
