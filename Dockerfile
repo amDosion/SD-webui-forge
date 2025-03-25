@@ -88,4 +88,25 @@ RUN chmod +x /app/run.sh && \
     mkdir -p /app/webui && chown -R webui:webui /app/webui
 
 # =============================
-# 🚩 切换至非
+# =============================
+# 🚩 切换至非 root 用户 webui
+# =============================
+USER webui
+WORKDIR /app/webui
+RUN echo "✅ 已成功切换至用户：$(whoami)" && \
+    echo "✅ 当前工作目录为：$(pwd)"
+
+# =============================
+# 🚩 环境基础自检（Python与Pip）
+# =============================
+RUN echo "🔎 Python 环境自检开始..." && \
+    python3 --version && \
+    pip3 --version && \
+    python3 -m venv --help > /dev/null && \
+    echo "✅ Python、pip 和 venv 已正确安装并通过检查" || \
+    echo "⚠️ Python 环境完整性出现问题，请排查！"
+
+# =============================
+# 🚩 设置容器启动入口
+# =============================
+ENTRYPOINT ["/app/run.sh"]
