@@ -20,10 +20,7 @@ RUN apt-get update && apt-get upgrade -y && \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
-        lsb-release software-properties-common \
-        libnvinfer9=9.0.0-1+cuda12.8 \
-        libnvparsers9=9.0.0-1+cuda12.8 && \
-        libopencv-dev"; \
+        lsb-release software-properties-common"; \
     for pkg in $packages; do \
         if dpkg -s "$pkg" >/dev/null 2>&1; then \
             echo "✅ 已安装：$pkg，跳过"; \
@@ -35,26 +32,31 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ====================================
-# 🚩 安装 PyTorch（匹配 CUDA 12.8）
+# 🚩 安装 PyTorch（匹配 CUDA 12.8）以及相关依赖
 # ====================================
 RUN pip3 install --upgrade pip && \
     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
-# 🚩 安装 insightface 及其依赖
+# 🚩 安装 torch-tensorrt（匹配 CUDA 12.8）
+# ====================================
+RUN pip3 install https://download.pytorch.org/whl/nightly/torch-tensorrt/torch_tensorrt-2.7.0.dev20250118+cu128-cp310-cp310-linux_x86_64.whl
+
+# ====================================
+# 🚩 安装其他 Python 依赖（如 insightface）
 # ====================================
 RUN pip3 install numpy scipy opencv-python scikit-learn Pillow insightface
 
-# =============================
+# ================================
 # 🚩 验证 CUDA 和 TensorRT 环境
-# =============================
+# ================================
 RUN echo "🔍 CUDA 编译器版本：" && nvcc --version && \
     echo "🔍 TensorRT 安装包：" && (dpkg -l | grep -E "libnvinfer|libnvparsers" || true) && \
     python3 -c "import torch; print('torch:', torch.__version__, '| CUDA:', torch.version.cuda)"
 
-# =============================
+# ================================
 # 🚩 创建非 root 用户 webui
-# =============================
+# ================================
 RUN useradd -m webui
 
 # ===================================
@@ -65,18 +67,17 @@ COPY run.sh /app/run.sh
 RUN chmod +x /app/run.sh && \
     mkdir -p /app/webui && chown -R webui:webui /app/webui
 
-# =============================
-# =============================
+# ================================
 # 🚩 切换至非 root 用户 webui
-# =============================
+# ================================
 USER webui
 WORKDIR /app/webui
 RUN echo "✅ 已成功切换至用户：$(whoami)" && \
     echo "✅ 当前工作目录为：$(pwd)"
 
-# =============================
+# ================================
 # 🚩 环境基础自检（Python与Pip）
-# =============================
+# ================================
 RUN echo "🔎 Python 环境自检开始..." && \
     python3 --version && \
     pip3 --version && \
@@ -84,9 +85,9 @@ RUN echo "🔎 Python 环境自检开始..." && \
     echo "✅ Python、pip 和 venv 已正确安装并通过检查" || \
     echo "⚠️ Python 环境完整性出现问题，请排查！"
 
-# =============================
+# ================================
 # 🚩 设置容器启动入口
-# =============================
+# ================================
 ENTRYPOINT ["/app/run.sh"]
 
 # ====================================
