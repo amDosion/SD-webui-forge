@@ -20,7 +20,8 @@ RUN apt-get update && apt-get upgrade -y && \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
-        lsb-release software-properties-common"; \
+        lsb-release software-properties-common \
+        libopencv-dev"; \
     for pkg in $packages; do \
         if dpkg -s "$pkg" >/dev/null 2>&1; then \
             echo "✅ 已安装：$pkg，跳过"; \
@@ -38,33 +39,9 @@ RUN pip3 install --upgrade pip && \
     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
-# 🚩 安装 TensorRT（CUDA 12.8 专用）— 拆分安装 + 检查是否重复安装 + 锁定版本
+# 🚩 安装 insightface 及其依赖
 # ====================================
-RUN CODENAME="ubuntu2204" && \
-    echo "🔧 添加 NVIDIA CUDA 仓库..." && \
-    rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
-    mkdir -p /usr/share/keyrings && \
-    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
-         | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
-         > /etc/apt/sources.list.d/cuda.list && \
-    apt-get update && \
-    for pkg in \
-        libnvinfer8 \
-        libnvinfer-plugin8 \
-        libnvparsers8 \
-        libnvonnxparsers8 \
-        libnvinfer-bin \
-        python3-libnvinfer; do \
-        if dpkg -s "$pkg" >/dev/null 2>&1; then \
-            echo "✅ 已安装：$pkg，跳过"; \
-        else \
-            echo "📦 安装：$pkg"; \
-            apt-get install -y --no-install-recommends "$pkg"; \
-        fi; \
-    done && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
-
+RUN pip3 install numpy scipy opencv-python scikit-learn Pillow insightface
 
 # =============================
 # 🚩 验证 CUDA 和 TensorRT 环境
@@ -109,3 +86,31 @@ RUN echo "🔎 Python 环境自检开始..." && \
 # 🚩 设置容器启动入口
 # =============================
 ENTRYPOINT ["/app/run.sh"]
+
+# ====================================
+# 以下部分被注释掉，移除不必要的 CUDA 安装
+# ====================================
+# RUN CODENAME="ubuntu2204" && \
+#     echo "🔧 添加 NVIDIA CUDA 仓库..." && \
+#     rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list && \
+#     mkdir -p /usr/share/keyrings && \
+#     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/cuda-archive-keyring.gpg \
+#          | gpg --batch --yes --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
+#     echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/${CODENAME}/x86_64/ /" \
+#          > /etc/apt/sources.list.d/cuda.list && \
+#     apt-get update && \
+#     for pkg in \
+#         libnvinfer8 \
+#         libnvinfer-plugin8 \
+#         libnvparsers8 \
+#         libnvonnxparsers8 \
+#         libnvinfer-bin \
+#         python3-libnvinfer; do \
+#         if dpkg -s "$pkg" >/dev/null 2>&1; then \
+#             echo "✅ 已安装：$pkg，跳过"; \
+#         else \
+#             echo "📦 安装：$pkg"; \
+#             apt-get install -y --no-install-recommends "$pkg"; \
+#         fi; \
+#     done && \
+#     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
