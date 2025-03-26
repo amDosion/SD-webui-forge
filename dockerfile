@@ -34,7 +34,7 @@ RUN apt-get update && apt-get upgrade -y && \
 # ====================================
 # 🚩 安装 PyTorch Nightly torch-tensorrt版本（包含 CUDA 12.8） 
 # ====================================
-RUN pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+RUN pip3 install --pre torch torchvision torchaudio torch-tensorrt --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
 # 🚩 验证安装
