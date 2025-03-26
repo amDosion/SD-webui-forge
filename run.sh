@@ -5,6 +5,7 @@ set -o pipefail
 
 # 日志输出
 LOG_FILE="/app/webui/launch.log"
+mkdir -p "$(dirname "$LOG_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "=================================================="
@@ -12,7 +13,7 @@ echo "🚀 [0] 启动脚本 Stable Diffusion WebUI"
 echo "=================================================="
 
 # ---------------------------------------------------
-# 系统环境自检（新增模块）
+# 系统环境自检
 # ---------------------------------------------------
 echo "🛠️  [0.5] 系统环境自检..."
 
@@ -35,7 +36,6 @@ fi
 # CUDA & GPU 检查
 if command -v nvidia-smi &>/dev/null; then
   echo "✅ nvidia-smi 检测成功，GPU 信息如下："
-
   echo "--------------------------------------------------"
   GPU_INFO=$(nvidia-smi --query-gpu=name,driver_version,cuda_version,temperature.gpu,utilization.gpu,memory.total,memory.used --format=csv,noheader,nounits)
   echo "$GPU_INFO" | while IFS=',' read -r name driver cuda temp util mem_total mem_used; do
@@ -43,7 +43,6 @@ if command -v nvidia-smi &>/dev/null; then
     mem_used_trimmed=$(echo $mem_used | xargs)
     usage_pct=$(( 100 * mem_used_trimmed / mem_total_trimmed ))
 
-    # 绘制 ASCII 条形图
     bar_length=30
     used_bar_count=$(( usage_pct * bar_length / 100 ))
     free_bar_count=$(( bar_length - used_bar_count ))
@@ -61,7 +60,6 @@ else
   echo "⚠️ 未检测到 nvidia-smi（可能无 GPU 或驱动未安装）"
 fi
 
-
 # 容器检测
 if [ -f "/.dockerenv" ]; then
   echo "📦 正在容器中运行"
@@ -69,10 +67,8 @@ else
   echo "🖥️ 非容器环境"
 fi
 
-# 当前用户
 echo "👤 当前用户: $(whoami)"
 
-# 目录写权限
 if [ -w "/app/webui" ]; then
   echo "✅ /app/webui 可写"
 else
@@ -81,7 +77,6 @@ else
 fi
 
 echo "✅ 系统环境自检通过"
-
 
 # ---------------------------------------------------
 # 环境变量设置
@@ -106,7 +101,7 @@ export NO_TCMALLOC=1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu126"
 
 # ---------------------------------------------------
-# 仓库路径配置
+# 设置 Git 源路径
 # ---------------------------------------------------
 echo "🔧 [3] 设置仓库路径与 Git 源..."
 if [ "$UI" = "auto" ]; then
@@ -123,22 +118,21 @@ echo "📁 目标目录: $TARGET_DIR"
 echo "🌐 GIT 源: $REPO"
 
 # ---------------------------------------------------
-# 克隆仓库或拉取更新
+# 克隆/更新仓库
 # ---------------------------------------------------
 if [ -d "$TARGET_DIR/.git" ]; then
-  echo "🔁 [4] 仓库已存在，执行 git pull..."
+  echo "🔁 仓库已存在，执行 git pull..."
   git -C "$TARGET_DIR" pull --ff-only || echo "⚠️ Git pull failed"
 else
-  echo "📥 [4] Clone 仓库..."
+  echo "📥 Clone 仓库..."
   git clone "$REPO" "$TARGET_DIR"
   chmod +x "$TARGET_DIR/webui.sh"
 fi
 
 # ---------------------------------------------------
-# 依赖修复 patch：requirements_versions.txt
+# requirements_versions.txt 修复
 # ---------------------------------------------------
 echo "🔧 [5] 补丁修正 requirements_versions.txt..."
-
 REQ_FILE="$TARGET_DIR/requirements_versions.txt"
 touch "$REQ_FILE"
 
@@ -154,7 +148,7 @@ add_or_replace_requirement() {
   fi
 }
 
-# ✅ 强制锁定依赖版本（推荐组合）
+# 推荐依赖版本
 add_or_replace_requirement "torch" "2.6.0"
 add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
@@ -168,17 +162,17 @@ add_or_replace_requirement "open-clip-torch" "2.24.0"
 check_gitpython_version() {
   local required_version="3.1.41"
   if python3 -c "import git, sys; from packaging import version; sys.exit(0) if version.parse(git.__version__) >= version.parse('$required_version') else sys.exit(1)" 2>/dev/null; then
-    echo "✅ GitPython >= $required_version 已存在，跳过"
+    echo "✅ GitPython >= $required_version 已存在"
   else
-    echo "🔧 安装/升级 GitPython 到 $required_version"
+    echo "🔧 添加 GitPython==$required_version"
     add_or_replace_requirement "GitPython" "$required_version"
   fi
 }
-
 check_gitpython_version
 
-echo "📦 完整依赖列表如下："
-grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort | column -t -s '='
+echo "📦 最终依赖列表如下："
+grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
+
 
 # ---------------------------------------------------
 # Python 虚拟环境
@@ -360,8 +354,10 @@ if [[ -n "$CIVITAI_API_TOKEN" ]]; then
   echo "🔐 CIVITAI_API_TOKEN 读取成功，长度：${#CIVITAI_API_TOKEN}"
 fi
 
+
 # ---------------------------------------------------
-# 启动
+# 🔥 启动最终服务（FIXED!）
 # ---------------------------------------------------
 echo "🚀 [11] 所有准备就绪，启动 webui.sh ..."
-exec bash webui.sh -f $ARGS |& tee /app/webui/launch.log
+
+exec bash webui.sh -f $ARGS
