@@ -36,10 +36,11 @@ RUN apt-get update && apt-get upgrade -y && \
 # ====================================
 RUN pip3 install --upgrade pip && \
     pip3 install torch==2.8.0.dev20250325+cu128 \
-    torchvision==0.22.0.dev20250227+cu128 \
-    torchaudio==2.6.0.dev20250326+cu128 \
+    torch==2.8.0.dev20250325+cu128 \
+    torchvision==0.22.0.dev20250325+cu128 \
+    torchaudio==2.6.0.dev20250325+cu128 \
     torch-tensorrt==2.7.0.dev20250325+cu128 \
-    --index-url https://download.pytorch.org/whl/nightly/cu128
+  --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
 # 🚩 验证安装
