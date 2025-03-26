@@ -32,15 +32,21 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ====================================
-# 🚩 安装 PyTorch（匹配 CUDA 12.8）以及相关依赖
+# 🚩 安装 PyTorch Nightly 版本（包含 CUDA 12.8） 
 # ====================================
 RUN pip3 install --upgrade pip && \
     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
-# 🚩 安装 torch-tensorrt（匹配 CUDA 12.8）
+# 🚩 下载并安装 torch-tensorrt 适配 CUDA 12.8 和 Python 3.12 版本的 .whl 文件
 # ====================================
-RUN pip3 install https://download.pytorch.org/whl/nightly/torch-tensorrt/torch_tensorrt-2.7.0.dev20250325+cu128-cp312-cp312-linux_x86_64.whl
+RUN wget https://download.pytorch.org/whl/nightly/cu128/torch_tensorrt-2.7.0.dev20250325+cu128-cp312-cp312-linux_x86_64.whl -P /app/ && \
+    pip3 install /app/torch_tensorrt-2.7.0.dev20250325+cu128-cp312-cp312-linux_x86_64.whl
+
+# ====================================
+# 🚩 验证安装
+# ====================================
+RUN python3 -c "import torch_tensorrt; print('torch-tensorrt installed successfully')"
 
 # ====================================
 # 🚩 安装其他 Python 依赖（如 insightface）
