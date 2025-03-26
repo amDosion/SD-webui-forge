@@ -166,28 +166,35 @@ chmod -R 777 .
 
 echo "🐍 [6] 虚拟环境检查..."
 if [ ! -x "venv/bin/activate" ]; then
-  echo "📦 创建 venv..."
-  python3 -m venv venv
-  source venv/bin/activate
+echo "📦 创建 venv..."
+python3 -m venv venv
+source venv/bin/activate
 
-  echo "📥 升级 pip..."
-  pip install --upgrade pip | tee /app/webui/logs/pip_upgrade.log
+echo "📥 升级 pip..."
+pip install --upgrade pip | tee -a "$LOG_FILE"
 
-  echo "📥 安装主依赖 requirements_versions.txt ..."
-  pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" \
-    | tee /app/webui/logs/pip_requirements.log
+echo "📥 安装主依赖 requirements_versions.txt ..."
+pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" \
+  | tee -a "$LOG_FILE"
 
-  echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
-  pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime \
-    | tee /app/webui/logs/pip_extras.log
+echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
+pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime \
+  | tee -a "$LOG_FILE"
 
-  if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
-    echo "📥 安装 transformers 相关组件（transformers, accelerate, diffusers）..."
-    pip install transformers accelerate diffusers | tee /app/webui/logs/pip_transformers.log
-  fi
+# 修复 torchvision 安装失败的问题
+pip install torchvision==0.17.0 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
 
-  echo "📦 venv 安装完成 ✅"
-  deactivate
+# 安装 huggingface-cli 工具
+pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
+
+if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
+  echo "📥 安装 transformers 相关组件（transformers, accelerate, diffusers）..."
+  pip install transformers accelerate diffusers | tee -a "$LOG_FILE"
+fi
+
+echo "📦 venv 安装完成 ✅"
+deactivate
+
 else
   echo "✅ venv 已存在，跳过创建和安装"
 fi
