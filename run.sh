@@ -133,7 +133,6 @@ add_or_replace_requirement() {
 }
 
 # 推荐依赖版本
-add_or_replace_requirement "torch" "2.8.0.dev20250325+cu128"   # 这里修改为与 CUDA 12.8 兼容的版本
 add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
@@ -157,7 +156,7 @@ check_gitpython_version
 
 # 输出最终依赖列表
 echo "📦 最终依赖列表如下："
-grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
+grep -E '^(xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
 
 # ---------------------------------------------------
 # Python 虚拟环境
