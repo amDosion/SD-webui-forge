@@ -21,6 +21,8 @@ RUN apt-get update && apt-get upgrade -y && \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
         lsb-release software-properties-common \
+        libnvinfer9=9.0.0-1+cuda12.8 \
+        libnvparsers9=9.0.0-1+cuda12.8 && \
         libopencv-dev"; \
     for pkg in $packages; do \
         if dpkg -s "$pkg" >/dev/null 2>&1; then \
@@ -47,7 +49,7 @@ RUN pip3 install numpy scipy opencv-python scikit-learn Pillow insightface
 # 🚩 验证 CUDA 和 TensorRT 环境
 # =============================
 RUN echo "🔍 CUDA 编译器版本：" && nvcc --version && \
-    echo "🔍 TensorRT 安装包：" && dpkg -l | grep -E "libnvinfer|libnvparsers" && \
+    echo "🔍 TensorRT 安装包：" && (dpkg -l | grep -E "libnvinfer|libnvparsers" || true) && \
     python3 -c "import torch; print('torch:', torch.__version__, '| CUDA:', torch.version.cuda)"
 
 # =============================
