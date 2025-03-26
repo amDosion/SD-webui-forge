@@ -1,4 +1,4 @@
-FROM FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
 
 # ===============================
 # 🚩 设置时区（上海）
