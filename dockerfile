@@ -44,12 +44,13 @@ RUN pip3 install --pre \
 # ====================================
 # 🚩 验证安装
 # ====================================
-RUN python3 -c "\
-try: \
-  import torch_tensorrt; \
-  print('torch-tensorrt installed successfully') \
-except Exception as e: \
-  print('Skipped torch-tensorrt check (no GPU)')"
+RUN python3 - <<EOF
+try:
+    import torch_tensorrt
+    print('torch-tensorrt installed successfully')
+except Exception as e:
+    print('Skipped torch-tensorrt check (no GPU)')
+EOF
 
 # ====================================
 # 🚩 安装其他 Python 依赖（如 insightface）
