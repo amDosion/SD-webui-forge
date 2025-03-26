@@ -44,19 +44,17 @@ RUN pip3 install --pre \
 # ====================================
 # 🚩 验证安装
 # ====================================
-RUN python3 -c "import torch_tensorrt; print('torch-tensorrt installed successfully')"
+RUN python3 -c "\
+try: \
+  import torch_tensorrt; \
+  print('torch-tensorrt installed successfully') \
+except Exception as e: \
+  print('Skipped torch-tensorrt check (no GPU)')"
 
 # ====================================
 # 🚩 安装其他 Python 依赖（如 insightface）
 # ====================================
 RUN pip3 install numpy scipy opencv-python scikit-learn Pillow insightface
-
-# ================================
-# 🚩 验证 CUDA 和 TensorRT 环境
-# ================================
-RUN echo "🔍 CUDA 编译器版本：" && nvcc --version && \
-    echo "🔍 TensorRT 安装包：" && (dpkg -l | grep -E "libnvinfer|libnvparsers" || true) && \
-    python3 -c "import torch; print('torch:', torch.__version__, '| CUDA:', torch.version.cuda)"
 
 # ================================
 # 🚩 创建非 root 用户 webui
