@@ -182,7 +182,6 @@ pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntim
   | tee -a "$LOG_FILE"
 
 # 修复 torchvision 安装失败的问题
-pip install torchvision==0.22.0 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
 pip install --pre torchvision==0.22.0.dev20250325+cu128 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
 # 安装 huggingface-cli 工具
 pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
