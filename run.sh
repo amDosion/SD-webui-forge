@@ -133,6 +133,7 @@ add_or_replace_requirement() {
 }
 
 # 推荐依赖版本
+add_or_replace_requirement "torch" "2.8.0.dev20250325+cu128"   # 这里修改为与 CUDA 12.8 兼容的版本
 add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
@@ -142,6 +143,7 @@ add_or_replace_requirement "protobuf" "4.25.3"
 add_or_replace_requirement "pydantic" "2.6.4"
 add_or_replace_requirement "open-clip-torch" "2.24.0"
 
+# 检查并安装正确版本的 GitPython
 check_gitpython_version() {
   local required_version="3.1.41"
   if python3 -c "import git, sys; from packaging import version; sys.exit(0) if version.parse(git.__version__) >= version.parse('$required_version') else sys.exit(1)" 2>/dev/null; then
@@ -153,9 +155,9 @@ check_gitpython_version() {
 }
 check_gitpython_version
 
+# 输出最终依赖列表
 echo "📦 最终依赖列表如下："
-grep -E '^(xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
-
+grep -E '^(torch|xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
 
 # ---------------------------------------------------
 # Python 虚拟环境
