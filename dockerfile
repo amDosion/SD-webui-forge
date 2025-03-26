@@ -40,7 +40,7 @@ RUN pip3 install --upgrade pip && \
 # ====================================
 # 🚩 安装 torch-tensorrt（匹配 CUDA 12.8）
 # ====================================
-RUN wget https://download.pytorch.org/whl/nightly/cu128/torch_tensorrt-2.7.0.dev20250325+cu128-cp311-cp311-linux_x86_64.whl -P /app/ && \
+RUN wget https://download.pytorch.org/whl/nightly/cu128/torch_tensorrt-2.7.0.dev20250325%2Bcu128-cp311-cp311-linux_x86_64.whl -P /app/ && \
     pip3 install /app/torch_tensorrt-2.7.0.dev20250325+cu128-cp311-cp311-linux_x86_64.whl
 
 # ====================================
