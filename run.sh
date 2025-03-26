@@ -34,26 +34,16 @@ else
 fi
 
 # CUDA & GPU 检查
+# CUDA & GPU 检查（简化版）
 if command -v nvidia-smi &>/dev/null; then
   echo "✅ nvidia-smi 检测成功，GPU 信息如下："
   echo "--------------------------------------------------"
-  GPU_INFO=$(nvidia-smi --query-gpu=name,driver_version,cuda_version,temperature.gpu,utilization.gpu,memory.total,memory.used --format=csv,noheader,nounits)
-  echo "$GPU_INFO" | while IFS=',' read -r name driver cuda temp util mem_total mem_used; do
-    mem_total_trimmed=$(echo $mem_total | xargs)
-    mem_used_trimmed=$(echo $mem_used | xargs)
-    usage_pct=$(( 100 * mem_used_trimmed / mem_total_trimmed ))
-
-    bar_length=30
-    used_bar_count=$(( usage_pct * bar_length / 100 ))
-    free_bar_count=$(( bar_length - used_bar_count ))
-    used_bar=$(printf "%0.s█" $(seq 1 $used_bar_count))
-    free_bar=$(printf "%0.s░" $(seq 1 $free_bar_count))
-
+  nvidia-smi --query-gpu=name,driver_version,cuda_version,temperature.gpu,utilization.gpu,memory.total,memory.used \
+    --format=csv,noheader,nounits | while IFS=',' read -r name driver cuda temp util mem_total mem_used; do
     echo "🖼️ GPU型号: $name"
     echo "🧠 驱动版本: $driver    CUDA版本: $cuda"
     echo "🌡️ 温度: ${temp}°C      利用率: ${util}%"
-    echo "🧮 显存使用: ${mem_used_trimmed}MiB / ${mem_total_trimmed}MiB  (${usage_pct}%)"
-    echo "📊 使用率图: [${used_bar}${free_bar}]"
+    echo "🧮 显存使用: ${mem_used} MiB / ${mem_total} MiB"
   done
   echo "--------------------------------------------------"
 else
