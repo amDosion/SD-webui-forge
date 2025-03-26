@@ -82,7 +82,7 @@ ENABLE_DOWNLOAD_TRANSFORMERS="${ENABLE_DOWNLOAD_TRANSFORMERS:-$ENABLE_DOWNLOAD_A
 echo "✅ DOWNLOAD_FLAGS: MODELS=$ENABLE_DOWNLOAD_MODELS, EXTS=$ENABLE_DOWNLOAD_EXTS"
 
 export NO_TCMALLOC=1
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu126"
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
 
 # ---------------------------------------------------
 # 设置 Git 源路径
