@@ -1,4 +1,4 @@
-name: stable-diffusion-webui-forge-auto
+name: stable-diffusion-webui-forge-cuda126
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:      # 支持手动触发
 
 env:
-  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-auto
+  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-cuda126
   FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
   AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 
@@ -66,21 +66,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 📅 Get Build Timestamp
-        if: steps.compare.outputs.changed == 'true'
-        id: build_time
-        run: echo "tag=$(date -u +'%Y-%m-%d-%H%M')" >> "$GITHUB_OUTPUT"
-
-      - name: 🐳 Build & Push with Timestamp Tag
+      - name: 🐳 Build & Push Docker Image (latest only)
         if: steps.compare.outputs.changed == 'true'
         run: |
-          TAG=${{ steps.build_time.outputs.tag }}
-          echo "📦 Building tag: $DOCKER_IMAGE:$TAG"
-          
+          echo "📦 Building Docker image: $DOCKER_IMAGE:latest"
           docker buildx build \
             --platform linux/amd64 \
             --no-cache \
-            -t $DOCKER_IMAGE:$TAG \
+            -t $DOCKER_IMAGE:latest \
             --push .
 
       - name: 🧹 Clean temp files
