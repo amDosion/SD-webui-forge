@@ -1,4 +1,4 @@
-name: stable-diffusion-webui-forge-cuda126
+name: stable-diffusion-webui-forge-cuda128
 
 on:
   schedule:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:      # 支持手动触发
 
 env:
-  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-cuda126
-  FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
+  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-cuda128
+  FORGE_REPO: https://github.com/amDosion/stable-diffusion-webui-forge-cuda126.git
   AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 
 jobs:
