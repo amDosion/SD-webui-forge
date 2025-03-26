@@ -1,0 +1,178 @@
+{
+  "setuptools": {
+    "version": "69.5.1",
+    "description": "临时修复，解决与部分旧包的兼容性问题"
+  },
+  "GitPython": {
+    "version": "3.1.32",
+    "description": "用于通过 Python 操作 Git 仓库"
+  },
+  "Pillow": {
+    "version": "9.5.0",
+    "description": "Python 图像处理库的主流分支"
+  },
+  "accelerate": {
+    "version": "0.31.0",
+    "description": "用于简化 PyTorch 多设备部署和加速推理"
+  },
+  "blendmodes": {
+    "version": "2022",
+    "description": "图像混合模式库，支持 Photoshop 风格的图像合成"
+  },
+  "clean-fid": {
+    "version": "0.1.35",
+    "description": "用于图像生成质量评估的 FID 分数计算工具"
+  },
+  "diskcache": {
+    "version": "5.6.3",
+    "description": "磁盘缓存机制，提高模型下载和处理性能"
+  },
+  "einops": {
+    "version": "0.4.1",
+    "description": "用于张量变换的简洁表达式（如 rearrange、repeat 等）"
+  },
+  "facexlib": {
+    "version": "0.3.0",
+    "description": "人脸检测与修复相关工具"
+  },
+  "fastapi": {
+    "version": "0.104.1",
+    "description": "现代、快速的 Python Web 框架，提供 API 服务"
+  },
+  "gradio": {
+    "version": "4.40.0",
+    "description": "机器学习模型可视化交互界面工具"
+  },
+  "httpcore": {
+    "version": "0.15",
+    "description": "Gradio 等网络组件的底层 HTTP 库"
+  },
+  "inflection": {
+    "version": "0.5.1",
+    "description": "英文名词复数转换、camel case 等字符串变换工具"
+  },
+  "jsonmerge": {
+    "version": "1.8.0",
+    "description": "基于 JSON Schema 合并 JSON 文件"
+  },
+  "kornia": {
+    "version": "0.6.7",
+    "description": "基于 PyTorch 的图像处理库"
+  },
+  "lark": {
+    "version": "1.1.2",
+    "description": "现代语法分析器，用于 DSL 或 config 解析"
+  },
+  "numpy": {
+    "version": "1.26.2",
+    "description": "数值计算基础库"
+  },
+  "omegaconf": {
+    "version": "2.2.3",
+    "description": "用于构建层次化配置系统"
+  },
+  "open-clip-torch": {
+    "version": "2.20.0",
+    "description": "OpenCLIP 模型实现，用于图文联合建模"
+  },
+  "piexif": {
+    "version": "1.1.3",
+    "description": "用于操作图片 EXIF 元数据"
+  },
+  "protobuf": {
+    "version": "3.20.0",
+    "description": "Google 的结构化数据序列化库"
+  },
+  "psutil": {
+    "version": "5.9.5",
+    "description": "系统资源监控（内存、CPU 等）"
+  },
+  "pytorch_lightning": {
+    "version": "1.9.4",
+    "description": "PyTorch 的训练流程封装框架"
+  },
+  "resize-right": {
+    "version": "0.0.2",
+    "description": "高质量图像缩放方法"
+  },
+  "safetensors": {
+    "version": "0.4.2",
+    "description": "用于替代 .pt 的安全模型文件格式"
+  },
+  "scikit-image": {
+    "version": "0.21.0",
+    "description": "图像处理基础工具集"
+  },
+  "spandrel": {
+    "version": "0.3.4",
+    "description": "扩展的图像推理库，支持更多模型和架构"
+  },
+  "spandrel-extra-arches": {
+    "version": "0.1.1",
+    "description": "Spandrel 库的额外网络结构支持"
+  },
+  "tomesd": {
+    "version": "0.1.3",
+    "description": "Stable Diffusion 推理加速工具（Token Merging）"
+  },
+  "torch": {
+    "version": "未指定",
+    "description": "PyTorch 主框架，自动根据 TORCH_COMMAND 或系统默认设置安装"
+  },
+  "torchdiffeq": {
+    "version": "0.2.3",
+    "description": "PyTorch 的常微分方程求解器"
+  },
+  "torchsde": {
+    "version": "0.2.6",
+    "description": "PyTorch 的随机微分方程求解器"
+  },
+  "transformers": {
+    "version": "4.46.1",
+    "description": "HuggingFace Transformers 预训练模型库"
+  },
+  "httpx": {
+    "version": "0.24.1",
+    "description": "异步支持的 HTTP 客户端"
+  },
+  "pillow-avif-plugin": {
+    "version": "1.4.3",
+    "description": "为 Pillow 添加 AVIF 图像支持"
+  },
+  "diffusers": {
+    "version": "0.31.0",
+    "description": "扩散模型实现（支持 Stable Diffusion 等）"
+  },
+  "gradio_rangeslider": {
+    "version": "0.0.6",
+    "description": "Gradio 的额外组件：区间滑块"
+  },
+  "gradio_imageslider": {
+    "version": "0.0.20",
+    "description": "Gradio 的额外组件：图像滑块"
+  },
+  "loadimg": {
+    "version": "0.1.2",
+    "description": "图像加载工具"
+  },
+  "tqdm": {
+    "version": "4.66.1",
+    "description": "命令行进度条工具"
+  },
+  "peft": {
+    "version": "0.13.2",
+    "description": "HuggingFace 的参数高效微调库（LoRA 支持）"
+  },
+  "pydantic": {
+    "version": "2.8.2",
+    "description": "Python 数据验证和结构定义库（支持类型注解）"
+  },
+  "huggingface-hub": {
+    "version": "0.26.2",
+    "description": "用于从 HuggingFace Hub 下载模型和数据"
+  },
+  "xformers": {
+    "version": "0.0.29.post3",
+    "description": "Meta 出品的高效 Transformer 模块"
+  }
+}
