@@ -38,7 +38,7 @@ RUN pip3 install --upgrade pip && \
     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # ====================================
-# 🚩 安装 TensorRT（CUDA 12.6 专用）— 拆分安装 + 检查是否重复安装 + 锁定版本
+# 🚩 安装 TensorRT（CUDA 12.8 专用）— 拆分安装 + 检查是否重复安装 + 锁定版本
 # ====================================
 RUN CODENAME="ubuntu2204" && \
     echo "🔧 添加 NVIDIA CUDA 仓库..." && \
