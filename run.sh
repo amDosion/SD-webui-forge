@@ -33,22 +33,16 @@ else
   exit 1
 fi
 
-# CUDA & GPU 检查
-# CUDA & GPU 检查（简化版）
+# CUDA & GPU 检查（使用 nvidia-smi 原生输出）
 if command -v nvidia-smi &>/dev/null; then
   echo "✅ nvidia-smi 检测成功，GPU 信息如下："
   echo "--------------------------------------------------"
-  nvidia-smi --query-gpu=name,driver_version,cuda_version,temperature.gpu,utilization.gpu,memory.total,memory.used \
-    --format=csv,noheader,nounits | while IFS=',' read -r name driver cuda temp util mem_total mem_used; do
-    echo "🖼️ GPU型号: $name"
-    echo "🧠 驱动版本: $driver    CUDA版本: $cuda"
-    echo "🌡️ 温度: ${temp}°C      利用率: ${util}%"
-    echo "🧮 显存使用: ${mem_used} MiB / ${mem_total} MiB"
-  done
+  nvidia-smi
   echo "--------------------------------------------------"
 else
   echo "⚠️ 未检测到 nvidia-smi（可能无 GPU 或驱动未安装）"
 fi
+
 
 # 容器检测
 if [ -f "/.dockerenv" ]; then
