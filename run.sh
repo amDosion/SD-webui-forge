@@ -236,19 +236,29 @@ if [[ -n "$AVX2_SUPPORTED" ]]; then
   if command -v nvidia-smi &>/dev/null; then
     echo "🧠 检测到 GPU，尝试安装 TensorFlow GPU 版本（支持 Python 3.11）"
     pip install tensorflow==2.19.0 | tee -a "$LOG_FILE"
+
+    # 输出详细的GPU信息
+    echo "🔧 获取 GPU 详细信息..."
+    nvidia-smi | tee -a "$LOG_FILE"
+    
   else
     echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.19.0（兼容 Python 3.11）"
     pip install tensorflow-cpu==2.19.0 | tee -a "$LOG_FILE"
   fi
 
   echo "🧪 验证 TensorFlow 是否识别 GPU："
-  python3 -c "import tensorflow as tf; gpus=tf.config.list_physical_devices('GPU'); print('✅ 可用 GPU:', gpus); exit(1) if not gpus else exit(0)" \
-    || echo "⚠️ TensorFlow 未能识别 GPU，请确认驱动与 CUDA 库完整"
+  python3 -c "import tensorflow as tf; gpus=tf.config.list_physical_devices('GPU'); 
+    if gpus: 
+        print('✅ 可用 GPU:', gpus); 
+    else: 
+        print('⚠️ 没有检测到可用的 GPU'); 
+    exit(0)" || echo "⚠️ TensorFlow 未能识别 GPU，请确认驱动与 CUDA 库完整"
 
 else
   echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow-cpu==2.19.0"
   pip install tensorflow-cpu==2.19.0
 fi
+
 
 deactivate
 
