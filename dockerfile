@@ -59,19 +59,6 @@ RUN echo "🔧 安装 PyTorch 和 Torch-TensorRT..." && \
     echo "✅ PyTorch 和 Torch-TensorRT 安装成功"
 
 # ====================================
-# 🚩 验证安装
-# ====================================
-RUN echo "🔧 验证 PyTorch 和 Torch-TensorRT 安装..." && \
-    python3 - <<EOF
-try:
-    import torch_tensorrt
-    print('torch-tensorrt installed successfully')
-except Exception as e:
-    print('Skipped torch-tensorrt check (no GPU)')
-EOF && \
-    echo "✅ 验证完成"
-
-# ====================================
 # 🚩 安装其他 Python 依赖（如 insightface）
 # ====================================
 RUN echo "🔧 安装其他 Python 依赖..." && \
