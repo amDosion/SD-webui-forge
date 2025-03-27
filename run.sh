@@ -141,7 +141,7 @@ add_or_replace_requirement "protobuf" "4.25.3"
 add_or_replace_requirement "pydantic" "2.6.4"
 add_or_replace_requirement "open-clip-torch" "2.24.0"
 
-# 检查并安装正确版本的 GitPython
+# 检查并添加 GitPython
 check_gitpython_version() {
   local required_version="3.1.41"
   if python3 -c "import git, sys; from packaging import version; sys.exit(0) if version.parse(git.__version__) >= version.parse('$required_version') else sys.exit(1)" 2>/dev/null; then
@@ -152,6 +152,17 @@ check_gitpython_version() {
   fi
 }
 check_gitpython_version
+
+# 🧹 清理注释和空行，保持纯净格式
+echo "🧹 清理注释内容..."
+CLEANED_REQ_FILE="${REQ_FILE}.cleaned"
+cat "$REQ_FILE" | sed 's/#.*//' | sed '/^\s*$/d' | xargs -L1 echo > "$CLEANED_REQ_FILE"
+mv "$CLEANED_REQ_FILE" "$REQ_FILE"
+
+# ✅ 输出最终依赖列表
+echo "📄 最终依赖列表如下："
+cat "$REQ_FILE"
+
 
 # 输出最终依赖列表
 echo "📦 最终依赖列表如下："
