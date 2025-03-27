@@ -119,6 +119,7 @@ echo "🔧 [5] 补丁修正 requirements_versions.txt..."
 REQ_FILE="$TARGET_DIR/requirements_versions.txt"
 touch "$REQ_FILE"
 
+# 添加或替换某个依赖版本
 add_or_replace_requirement() {
   local package="$1"
   local version="$2"
@@ -131,7 +132,7 @@ add_or_replace_requirement() {
   fi
 }
 
-# 推荐依赖版本
+# 推荐依赖版本（将统一写入或替换）
 add_or_replace_requirement "xformers" "0.0.29.post3"
 add_or_replace_requirement "diffusers" "0.31.0"
 add_or_replace_requirement "transformers" "4.46.1"
@@ -140,18 +141,7 @@ add_or_replace_requirement "torchsde" "0.2.6"
 add_or_replace_requirement "protobuf" "4.25.3"
 add_or_replace_requirement "pydantic" "2.6.4"
 add_or_replace_requirement "open-clip-torch" "2.24.0"
-
-# 检查并添加 GitPython
-check_gitpython_version() {
-  local required_version="3.1.41"
-  if python3 -c "import git, sys; from packaging import version; sys.exit(0) if version.parse(git.__version__) >= version.parse('$required_version') else sys.exit(1)" 2>/dev/null; then
-    echo "✅ GitPython >= $required_version 已存在"
-  else
-    echo "🔧 添加 GitPython==$required_version"
-    add_or_replace_requirement "GitPython" "$required_version"
-  fi
-}
-check_gitpython_version
+add_or_replace_requirement "GitPython" "3.1.41"
 
 # 🧹 清理注释和空行，保持纯净格式
 echo "🧹 清理注释内容..."
@@ -162,6 +152,7 @@ mv "$CLEANED_REQ_FILE" "$REQ_FILE"
 # ✅ 输出最终依赖列表
 echo "📄 最终依赖列表如下："
 cat "$REQ_FILE"
+
 
 # 输出最终依赖列表
 echo "📦 最终依赖列表如下："
