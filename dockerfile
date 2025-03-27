@@ -4,14 +4,27 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 # 🚩 设置时区（上海）
 # ===============================
 ENV TZ=Asia/Shanghai
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN echo "🔧 设置时区为 ${TZ}..." && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    echo "✅ 时区设置成功：${TZ}"
 
 # ====================================
 # 🚩 系统依赖 + Python 环境 + 构建工具（分拆安装 + 跳过重复）
 # ====================================
-RUN apt-get update && apt-get upgrade -y && \
+RUN echo "🔧 更新系统并安装基本依赖..." && \
+    apt-get update && apt-get upgrade -y && \
+    echo "✅ 系统更新完成" && \
+    # 安装Python 3.11及相关依赖
+    echo "📦 安装 Python 3.11 及相关依赖..." && \
+    apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-dev && \
+    echo "✅ Python 3.11 安装成功" && \
+    # 设置 Python 3.11 为默认版本
+    echo "🔧 设置 Python 3.11 为默认版本..." && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
+    echo "✅ Python 3.11 设置为默认版本" && \
+    # 安装其他系统依赖
     packages="\
-        python3 python3-pip python3-venv python3-dev \
         wget git git-lfs curl procps \
         libgl1 libgl1-mesa-glx libglvnd0 \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
@@ -29,38 +42,48 @@ RUN apt-get update && apt-get upgrade -y && \
             apt-get install -y --no-install-recommends "$pkg"; \
         fi; \
     done && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    echo "✅ 系统依赖安装完成"
 
 # ====================================
 # 🚩 安装 PyTorch Nightly torch-tensorrt版本（包含 CUDA 12.8） 
 # ====================================
-RUN pip3 install --pre \
+RUN echo "🔧 安装 PyTorch 和 Torch-TensorRT..." && \
+    pip3 install --pre \
     torch==2.8.0.dev20250326+cu128 \
     torchvision==0.22.0.dev20250326+cu128 \
     torchaudio==2.6.0.dev20250326+cu128 \
     torch-tensorrt==2.7.0.dev20250325+cu128 \
     --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
-    --no-cache-dir
+    --no-cache-dir && \
+    echo "✅ PyTorch 和 Torch-TensorRT 安装成功"
+
 # ====================================
 # 🚩 验证安装
 # ====================================
-RUN python3 - <<EOF
+RUN echo "🔧 验证 PyTorch 和 Torch-TensorRT 安装..." && \
+    python3 - <<EOF
 try:
     import torch_tensorrt
     print('torch-tensorrt installed successfully')
 except Exception as e:
     print('Skipped torch-tensorrt check (no GPU)')
-EOF
+EOF && \
+    echo "✅ 验证完成"
 
 # ====================================
 # 🚩 安装其他 Python 依赖（如 insightface）
 # ====================================
-RUN pip3 install numpy scipy opencv-python scikit-learn Pillow insightface
+RUN echo "🔧 安装其他 Python 依赖..." && \
+    pip3 install numpy scipy opencv-python scikit-learn Pillow insightface && \
+    echo "✅ 其他依赖安装完成"
 
 # ================================
 # 🚩 创建非 root 用户 webui
 # ================================
-RUN useradd -m webui
+RUN echo "🔧 创建用户 webui..." && \
+    useradd -m webui && \
+    echo "✅ 用户 webui 创建成功"
 
 # ===================================
 # 🚩 设置工作目录，复制脚本并授权
@@ -68,7 +91,8 @@ RUN useradd -m webui
 WORKDIR /app
 COPY run.sh /app/run.sh
 RUN chmod +x /app/run.sh && \
-    mkdir -p /app/webui && chown -R webui:webui /app/webui
+    mkdir -p /app/webui && chown -R webui:webui /app/webui && \
+    echo "✅ 复制并授权 run.sh 成功"
 
 # ================================
 # 🚩 切换至非 root 用户 webui
