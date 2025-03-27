@@ -153,7 +153,6 @@ mv "$CLEANED_REQ_FILE" "$REQ_FILE"
 echo "📄 最终依赖列表如下："
 cat "$REQ_FILE"
 
-
 # 输出最终依赖列表
 echo "📦 最终依赖列表如下："
 grep -E '^(xformers|diffusers|transformers|torchdiffeq|torchsde|GitPython|protobuf|pydantic|open-clip-torch)=' "$REQ_FILE" | sort
