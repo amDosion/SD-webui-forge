@@ -11,23 +11,23 @@ RUN echo "🔧 设置时区为 ${TZ}..." && \
 # ====================================
 # 🚩 系统依赖 + Python 环境 + 构建工具（分拆安装 + 跳过重复）
 # ====================================
+# 更新系统并安装基本依赖，包括 Python 3.11 和相关工具
 RUN echo "🔧 更新系统并安装基本依赖..." && \
     apt-get update && apt-get upgrade -y && \
     echo "✅ 系统更新完成" && \
-    # 安装 Python 3.11 及相关依赖
-    echo "📦 安装 Python 3.11 及相关依赖..." && \
     apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-dev && \
     echo "✅ Python 3.11 安装成功" && \
-    # 确保安装 pip3
+    # 安装 pip3
     echo "📦 安装 pip3..." && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py && \
     echo "✅ pip3 安装成功" && \
-        # 设置 Python 3.11 为默认版本
+    # 设置 Python 3.11 为默认版本
     echo "🔧 设置 Python 3.11 为默认版本..." && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-    echo "✅ Python 3.11 设置为默认版本" && \
+    echo "✅ Python 3.11 设置为默认版本"
+
     # 安装其他系统依赖
     packages="\
         wget git git-lfs curl procps \
