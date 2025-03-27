@@ -156,13 +156,12 @@ check_gitpython_version
 # 🧹 清理注释和空行，保持纯净格式
 echo "🧹 清理注释内容..."
 CLEANED_REQ_FILE="${REQ_FILE}.cleaned"
-cat "$REQ_FILE" | sed 's/#.*//' | sed '/^\s*$/d' | xargs -L1 echo > "$CLEANED_REQ_FILE"
+sed 's/#.*//' "$REQ_FILE" | sed '/^\s*$/d' > "$CLEANED_REQ_FILE"
 mv "$CLEANED_REQ_FILE" "$REQ_FILE"
 
 # ✅ 输出最终依赖列表
 echo "📄 最终依赖列表如下："
 cat "$REQ_FILE"
-
 
 # 输出最终依赖列表
 echo "📦 最终依赖列表如下："
