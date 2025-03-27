@@ -21,6 +21,7 @@ RUN echo "🔧 更新系统并安装基本依赖..." && \
     echo "📦 安装 pip3..." && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py && \
+    rm get-pip.py && \
     echo "✅ pip3 安装成功" && \
     # 设置 Python 3.11 为默认版本
     echo "🔧 设置 Python 3.11 为默认版本..." && \
