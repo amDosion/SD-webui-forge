@@ -12,9 +12,6 @@ RUN echo "🔧 正在设置时区为 $TZ..." && \
 # ===============================
 # 🚩 安装系统依赖 & CUDA 工具链
 # ===============================
-# ===============================
-# 🚩 安装系统依赖 & CUDA 工具链
-# ===============================
 RUN echo -e "🔧 开始安装系统依赖和 CUDA 开发工具...\n" && \
     apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -24,14 +21,16 @@ RUN echo -e "🔧 开始安装系统依赖和 CUDA 开发工具...\n" && \
         xvfb build-essential cmake bc \
         libgoogle-perftools-dev \
         apt-transport-https htop nano bsdmainutils \
-        lsb-release software-properties-common \
-        jq && \   # 添加 jq 安装
+        lsb-release software-properties-common && \
+    # 添加 jq（用于处理 JSON）
+    apt-get install -y jq && \
     echo -e "✅ 基础系统依赖安装完成\n" && \
     echo -e "🔧 正在安装 CUDA 12.6 工具链和数学库...\n" && \
     apt-get install -y --no-install-recommends \
         cuda-compiler-12-6 libcublas-12-6 libcublas-dev-12-6 && \
     echo -e "✅ CUDA 工具链安装完成\n" && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 
 # ===============================
 # 🚩 安装 TensorRT（匹配 CUDA 12.6）
