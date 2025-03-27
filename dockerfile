@@ -15,7 +15,7 @@ RUN echo "🔧 设置时区为 ${TZ}..." && \
 RUN echo "🔧 更新系统并安装基本依赖..." && \
     apt-get update && apt-get upgrade -y && \
     echo "✅ 系统更新完成" && \
-    apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-dev && \
+    apt-get install -y python3.11 python3.11-venv python3.11-dev && \
     echo "✅ Python 3.11 安装成功" && \
     # 安装 pip3
     echo "📦 安装 pip3..." && \
