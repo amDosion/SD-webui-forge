@@ -43,7 +43,6 @@ else
   echo "⚠️ 未检测到 nvidia-smi（可能无 GPU 或驱动未安装）"
 fi
 
-
 # 容器检测
 if [ -f "/.dockerenv" ]; then
   echo "📦 正在容器中运行"
@@ -166,23 +165,49 @@ chmod -R 777 .
 
 echo "🐍 [6] 虚拟环境检查..."
 if [ ! -x "venv/bin/activate" ]; then
-echo "📦 创建 venv..."
-python3 -m venv venv
+  echo "📦 创建 venv..."
+  python3 -m venv venv
+fi
+
+# 激活虚拟环境
 source venv/bin/activate
 
 echo "📥 升级 pip..."
 pip install --upgrade pip | tee -a "$LOG_FILE"
 
 echo "📥 安装主依赖 requirements_versions.txt ..."
-pip install -r requirements_versions.txt --extra-index-url "$PIP_EXTRA_INDEX_URL" \
-  | tee -a "$LOG_FILE"
+DEPENDENCIES_INFO_URL="https://raw.githubusercontent.com/amDosion/SD-webui-forge/main/dependencies_info.json"
+DEPENDENCIES_INFO=$(curl -s "$DEPENDENCIES_INFO_URL")
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  # 忽略注释或空行
+  [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+  # 提取包名和版本
+  if [[ "$line" == *"=="* ]]; then
+    package_name=$(echo "$line" | cut -d'=' -f1)
+    package_version=$(echo "$line" | cut -d'=' -f3)
+  else
+    package_name="$line"
+    package_version="最新"
+  fi
+
+  # 提取说明
+  description=$(echo "$DEPENDENCIES_INFO" | jq -r --arg pkg "$package_name" '.[$pkg].description // empty')
+
+  echo "📦 安装 $package_name==$package_version"
+  [[ -n "$description" ]] && echo "📘 说明: $description" || echo "📘 说明: 无（未记录）"
+
+  # 安装执行
+  pip install "$line" --extra-index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
+done < "$REQ_FILE"
 
 echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
 pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime \
   | tee -a "$LOG_FILE"
 
 # 修复 torchvision 安装失败的问题
-pip install --pre torchvision==0.22.0.dev20250325+cu128 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
+pip install torchvision==0.22.0 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
 
 # 安装 huggingface-cli 工具
 pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
@@ -192,16 +217,9 @@ if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
   pip install transformers accelerate diffusers | tee -a "$LOG_FILE"
 fi
 
-echo "📦 venv 安装完成 ✅"
-deactivate
-
-else
-  echo "✅ venv 已存在，跳过创建和安装"
-fi
-
-echo "🐍 [6.1] 激活虚拟环境以安装TensorFlow..."
-source venv/bin/activate
-
+# ---------------------------------------------------
+# 安装 TensorFlow
+# ---------------------------------------------------
 echo "🔍 正在检测 CPU 支持情况..."
 
 CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}')
@@ -212,21 +230,20 @@ echo "🧠 检测到 CPU: ${CPU_VENDOR}"
 if [[ -n "$AVX2_SUPPORTED" ]]; then
   echo "✅ 检测到 AVX2 指令集"
 
-echo "🔍 检测并安装 TensorFlow（GPU 优先）..."
-pip uninstall -y tensorflow tensorflow-cpu || true
+  echo "🔍 检测并安装 TensorFlow（GPU 优先）..."
+  pip uninstall -y tensorflow tensorflow-cpu || true
 
-if command -v nvidia-smi &>/dev/null; then
-  echo "🧠 检测到 GPU，尝试安装 TensorFlow GPU 版本（支持 Python 3.11）"
-  pip install tensorflow==2.19.0 | tee -a "$LOG_FILE"
-else
-  echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.19.0（兼容 Python 3.11）"
-  pip install tensorflow-cpu==2.19.0 | tee -a "$LOG_FILE"
-fi
+  if command -v nvidia-smi &>/dev/null; then
+    echo "🧠 检测到 GPU，尝试安装 TensorFlow GPU 版本（支持 Python 3.11）"
+    pip install tensorflow==2.19.0 | tee -a "$LOG_FILE"
+  else
+    echo "🧠 未检测到 GPU，安装 tensorflow-cpu==2.19.0（兼容 Python 3.11）"
+    pip install tensorflow-cpu==2.19.0 | tee -a "$LOG_FILE"
+  fi
 
-echo "🧪 验证 TensorFlow 是否识别 GPU："
-python3 -c "import tensorflow as tf; gpus=tf.config.list_physical_devices('GPU'); print('✅ 可用 GPU:', gpus); exit(1) if not gpus else exit(0)" \
-  || echo "⚠️ TensorFlow 未能识别 GPU，请确认驱动与 CUDA 库完整"
-
+  echo "🧪 验证 TensorFlow 是否识别 GPU："
+  python3 -c "import tensorflow as tf; gpus=tf.config.list_physical_devices('GPU'); print('✅ 可用 GPU:', gpus); exit(1) if not gpus else exit(0)" \
+    || echo "⚠️ TensorFlow 未能识别 GPU，请确认驱动与 CUDA 库完整"
 
 else
   echo "⚠️ 未检测到 AVX2 → fallback 到 tensorflow-cpu==2.19.0"
@@ -234,6 +251,11 @@ else
 fi
 
 deactivate
+
+# ---------------------------------------------------
+# 安装完成日志
+# ---------------------------------------------------
+echo "📦 venv 安装完成 ✅"
 
 # ---------------------------------------------------
 # 创建目录
