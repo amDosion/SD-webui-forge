@@ -191,10 +191,11 @@ DEPENDENCIES_INFO_URL="https://raw.githubusercontent.com/amDosion/SD-webui-forge
 DEPENDENCIES_INFO=$(curl -s "$DEPENDENCIES_INFO_URL")
 
 while IFS= read -r line || [[ -n "$line" ]]; do
-  # 忽略注释或空行
-  [[ -z "$line" || "$line" =~ ^# ]] && continue
+  # 清洗注释和空行
+  line=$(echo "$line" | sed 's/#.*//' | xargs)
+  [[ -z "$line" ]] && continue
 
-  # 提取包名和版本
+  # 提取包名与版本
   if [[ "$line" == *"=="* ]]; then
     package_name=$(echo "$line" | cut -d'=' -f1)
     package_version=$(echo "$line" | cut -d'=' -f3)
@@ -203,14 +204,16 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     package_version="最新"
   fi
 
-  # 提取说明
+  # 获取描述信息
   description=$(echo "$DEPENDENCIES_INFO" | jq -r --arg pkg "$package_name" '.[$pkg].description // empty')
 
-  echo "📦 安装 $package_name==$package_version"
+  echo "📦 安装 ${package_name}==${package_version}"
   [[ -n "$description" ]] && echo "📘 说明: $description" || echo "📘 说明: 无（未记录）"
 
-  # 安装执行
-  pip install "$line" --extra-index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
+  # ✅ 安装并美化成功信息输出
+  pip install "${package_name}==${package_version}" --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+    | tee -a "$LOG_FILE" \
+    | sed 's/^Successfully installed/✅ 成功安装/'
 done < "$REQ_FILE"
 
 echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
