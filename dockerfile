@@ -14,11 +14,16 @@ RUN echo "🔧 设置时区为 ${TZ}..." && \
 RUN echo "🔧 更新系统并安装基本依赖..." && \
     apt-get update && apt-get upgrade -y && \
     echo "✅ 系统更新完成" && \
-    # 安装Python 3.11及相关依赖
+    # 安装 Python 3.11 及相关依赖
     echo "📦 安装 Python 3.11 及相关依赖..." && \
     apt-get install -y python3.11 python3.11-pip python3.11-venv python3.11-dev && \
     echo "✅ Python 3.11 安装成功" && \
-    # 设置 Python 3.11 为默认版本
+    # 确保安装 pip3
+    echo "📦 安装 pip3..." && \
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.11 get-pip.py && \
+    echo "✅ pip3 安装成功" && \
+        # 设置 Python 3.11 为默认版本
     echo "🔧 设置 Python 3.11 为默认版本..." && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
@@ -46,7 +51,7 @@ RUN echo "🔧 更新系统并安装基本依赖..." && \
     echo "✅ 系统依赖安装完成"
 
 # ====================================
-# 🚩 安装 PyTorch Nightly torch-tensorrt版本（包含 CUDA 12.8） 
+# 🚩 安装 PyTorch Nightly torch-tensorrt版本（包含 CUDA 12.8）
 # ====================================
 RUN echo "🔧 安装 PyTorch 和 Torch-TensorRT..." && \
     pip3 install --pre \
@@ -103,6 +108,7 @@ RUN echo "🔎 Python 环境自检开始..." && \
 # 🚩 设置容器启动入口
 # ================================
 ENTRYPOINT ["/app/run.sh"]
+
 
 # ====================================
 # 以下部分被注释掉，移除不必要的 CUDA 安装
