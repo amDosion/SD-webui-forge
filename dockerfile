@@ -27,10 +27,10 @@ RUN echo "🔧 更新系统并安装基本依赖..." && \
     echo "🔧 设置 Python 3.11 为默认版本..." && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-    echo "✅ Python 3.11 设置为默认版本"
-
+    echo "✅ Python 3.11 设置为默认版本" && \
     # 安装其他系统依赖
-    packages="\
+    echo "📦 安装其他系统依赖..." && \
+    apt-get install -y --no-install-recommends \
         wget git git-lfs curl procps \
         libgl1 libgl1-mesa-glx libglvnd0 \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
@@ -39,15 +39,7 @@ RUN echo "🔧 更新系统并安装基本依赖..." && \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
-        lsb-release software-properties-common"; \
-    for pkg in $packages; do \
-        if dpkg -s "$pkg" >/dev/null 2>&1; then \
-            echo "✅ 已安装：$pkg，跳过"; \
-        else \
-            echo "📦 安装：$pkg"; \
-            apt-get install -y --no-install-recommends "$pkg"; \
-        fi; \
-    done && \
+        lsb-release software-properties-common && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     echo "✅ 系统依赖安装完成"
 
