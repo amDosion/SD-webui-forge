@@ -196,13 +196,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   # 获取描述信息
   description=$(echo "$DEPENDENCIES_INFO" | jq -r --arg pkg "$package_name" '.[$pkg].description // empty')
 
-  echo "📦 安装 ${package_name}==${package_version}"
-  [[ -n "$description" ]] && echo "📘 说明: $description" || echo "📘 说明: 无（未记录）"
+  if [[ -z "$description" ]]; then
+    echo "⚠️ 警告: 未找到 $package_name 的描述信息，继续执行..."
+  else
+    echo "📘 说明: $description"
+  fi
 
-  # ✅ 安装并美化成功信息输出
+  echo "📦 安装 ${package_name}==${package_version}"
+
+  # 安装并美化成功信息输出
   pip install "${package_name}==${package_version}" --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
     | tee -a "$LOG_FILE" \
     | sed 's/^Successfully installed/✅ 成功安装/'
+
 done < "$REQ_FILE"
 
 echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
