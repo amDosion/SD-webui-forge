@@ -4,7 +4,7 @@
     "description": "临时修复，解决与部分旧包的兼容性问题"
   },
   "GitPython": {
-    "version": "3.1.32",
+    "version": "3.1.41",
     "description": "用于通过 Python 操作 Git 仓库"
   },
   "Pillow": {
@@ -80,7 +80,7 @@
     "description": "用于操作图片 EXIF 元数据"
   },
   "protobuf": {
-    "version": "3.20.0",
+    "version": "4.25.3",
     "description": "Google 的结构化数据序列化库"
   },
   "psutil": {
@@ -175,11 +175,4 @@
     "version": "0.0.29.post3",
     "description": "Meta 出品的高效 Transformer 模块"
   }
-  },
-{
-  "torch": {
-    "version": "2.8.0",
-    "description": "PyTorch 主框架，自动根据 TORCH_COMMAND 或系统默认设置安装"
-  },
-  ...
 }
