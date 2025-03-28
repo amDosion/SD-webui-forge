@@ -213,20 +213,55 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
 done < "$REQ_FILE"
 
-echo "📥 安装额外依赖 numpy, scikit-image, gdown 等..."
-pip install numpy==1.25.2 scikit-image==0.21.0 gdown insightface onnx onnxruntime \
-  | tee -a "$LOG_FILE"
+# ✅ 判断某个包是否已在 requirements_versions.txt 中
+should_install_extra_package() {
+  local package="$1"
+  grep -iE "^${package}(==.*)?$" "$REQ_FILE" > /dev/null
+  return $?
+}
 
-# 修复 torchvision 安装失败的问题
-pip install --pre torchvision==0.22.0.dev20250326+cu128 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
+# ---------------------------------------------------
+# 📥 安装额外依赖（仅未在主依赖中出现的）
+# ---------------------------------------------------
+echo "📥 检查并安装额外依赖 numpy, scikit-image, gdown 等..."
 
-# 安装 huggingface-cli 工具
-pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
+for pkg in numpy scikit-image gdown insightface onnx onnxruntime; do
+  if should_install_extra_package "$pkg"; then
+    echo "⏭️ 跳过 $pkg（已在 requirements_versions.txt 中）"
+  else
+    echo "📦 安装 $pkg（未在主依赖中）"
+    pip install "$pkg" | tee -a "$LOG_FILE"
+  fi
+done
 
-if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
-  echo "📥 安装 transformers 相关组件（transformers, accelerate, diffusers）..."
-  pip install transformers accelerate diffusers | tee -a "$LOG_FILE"
+# torchvision 特例安装（避免重复）
+if should_install_extra_package "torchvision"; then
+  echo "⏭️ 跳过 torchvision（已在 requirements_versions.txt 中）"
+else
+  echo "📦 安装 torchvision（指定 nightly 版本）"
+  pip install --pre torchvision==0.22.0.dev20250326+cu128 --index-url "$PIP_EXTRA_INDEX_URL" | tee -a "$LOG_FILE"
 fi
+
+# huggingface_hub[cli]
+if should_install_extra_package "huggingface_hub"; then
+  echo "⏭️ 跳过 huggingface_hub（已在 requirements_versions.txt 中）"
+else
+  echo "📦 安装 huggingface_hub[cli]"
+  pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
+fi
+
+# transformers / accelerate / diffusers
+if [[ "$ENABLE_DOWNLOAD_TRANSFORMERS" == "true" ]]; then
+  for pkg in transformers accelerate diffusers; do
+    if should_install_extra_package "$pkg"; then
+      echo "⏭️ 跳过 $pkg（已在 requirements_versions.txt 中）"
+    else
+      echo "📦 安装 $pkg（transformers 相关组件）"
+      pip install "$pkg" | tee -a "$LOG_FILE"
+    fi
+  done
+fi
+
 
 # ---------------------------------------------------
 # 安装 TensorFlow
