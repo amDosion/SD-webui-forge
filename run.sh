@@ -179,32 +179,34 @@ echo "📥 安装主依赖 requirements_versions.txt ..."
 DEPENDENCIES_INFO_URL="https://raw.githubusercontent.com/amDosion/SD-webui-forge/main/dependencies_info.json"
 DEPENDENCIES_INFO=$(curl -s "$DEPENDENCIES_INFO_URL")
 
+# 修复 Windows 格式行尾
+sed -i 's/\r//' "$REQ_FILE"
+
 while IFS= read -r line || [[ -n "$line" ]]; do
-  # 清洗注释和空行
   line=$(echo "$line" | sed 's/#.*//' | xargs)
   [[ -z "$line" ]] && continue
 
-  # 提取包名与版本
+  # 判断是否包含版本
   if [[ "$line" == *"=="* ]]; then
-    package_name=$(echo "$line" | cut -d'=' -f1)
-    package_version=$(echo "$line" | cut -d'=' -f3)
+    package_name=$(echo "$line" | cut -d'=' -f1 | xargs)
+    package_version=$(echo "$line" | cut -d'=' -f3 | xargs)
   else
-    package_name="$line"
-    package_version="最新"
+    package_name=$(echo "$line" | xargs)
+    package_version=$(echo "$DEPENDENCIES_INFO" | jq -r --arg pkg "$package_name" '.[$pkg].version // empty')
+
+    if [[ -z "$package_version" || "$package_version" == "null" ]]; then
+      echo "⚠️ 警告: 未指定 $package_name 的版本，且 JSON 中也未找到版本信息，跳过"
+      continue
+    else
+      echo "ℹ️ 来自 JSON 的版本补全：$package_name==$package_version"
+    fi
   fi
 
   # 获取描述信息
   description=$(echo "$DEPENDENCIES_INFO" | jq -r --arg pkg "$package_name" '.[$pkg].description // empty')
-
-  if [[ -z "$description" ]]; then
-    echo "⚠️ 警告: 未找到 $package_name 的描述信息，继续执行..."
-  else
-    echo "📘 说明: $description"
-  fi
+  [[ -n "$description" ]] && echo "📘 说明: $description" || echo "⚠️ 警告: 未找到 $package_name 的描述信息，继续执行..."
 
   echo "📦 安装 ${package_name}==${package_version}"
-
-  # 安装并美化成功信息输出
   pip install "${package_name}==${package_version}" --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
     | tee -a "$LOG_FILE" \
     | sed 's/^Successfully installed/✅ 成功安装/'
