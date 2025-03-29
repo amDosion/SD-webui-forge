@@ -116,11 +116,20 @@ RUN echo "✅ 已成功切换至用户：$(whoami)" && \
 # ================================
 # 🚩 环境基础自检（Python与Pip）
 # ================================
+# Dockerfile
+
+# ================================
+# 🚩 环境基础自检（Python与Pip）
+# ================================
+# 检查 python3 (应为 3.11), pip 和 venv 模块是否按预期工作
 RUN echo "🔎 Python 环境自检开始..." && \
-    python3 --version && # 应显示 Python 3.11.x
-    python3 -m pip --version && # 检查关联的 pip
+    python3 --version && \
+    # 检查关联的 pip 版本
+    python3 -m pip --version && \
+    # 验证 venv 模块是否可用
     python3 -m venv --help > /dev/null && \
     echo "✅ Python、pip 和 venv 已正确安装并通过检查 (应为 Python 3.11)" || \
+    # 如果任何检查失败，则输出错误并以非零状态退出，中止构建
     (echo "⚠️ Python 环境完整性出现问题，请排查！" && exit 1)
 
 # ====================================
