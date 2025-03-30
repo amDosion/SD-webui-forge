@@ -178,7 +178,7 @@ if [ -d "$TARGET_DIR/.git" ]; then
 else
   echo "  - 仓库不存在，开始克隆 $REPO 到 $TARGET_DIR (浅克隆)..."
   # 使用 --depth 1 浅克隆，节省时间和空间
-  git clone --depth=1 "$REPO" "$TARGET_DIR"
+  git clone "$REPO" "$TARGET_DIR"
   # 赋予启动脚本执行权限
   if [ -f "$TARGET_DIR/$WEBUI_EXECUTABLE" ]; then
       chmod +x "$TARGET_DIR/$WEBUI_EXECUTABLE"
