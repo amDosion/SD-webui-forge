@@ -112,21 +112,25 @@ RUN echo "🔧 开始从源码编译 xformers (目标架构: ${TORCH_CUDA_ARCH_L
 # ENV TORCH_CUDA_ARCH_LIST=""
 
 # =======================================================
-# 🚩 [新增] 安装 TensorFlow Nightly (CPU+GPU)
+# 🚩 [已弃用] Docker 构建阶段安装 TensorFlow Nightly
 # =======================================================
-# 注意: 安装 tf-nightly 会显著增加镜像大小
-# tf-nightly 通常包含对最新 CUDA 版本的支持
-RUN echo "🔧 安装 TensorFlow Nightly (tf-nightly)..." && \
-    # 尝试卸载旧版以防万一 (通常不需要，但在复杂环境中保险)
-    # python3.11 -m pip uninstall -y tensorflow tensorflow-cpu tensorflow-gpu tensorboard tf-nightly tf-nightly-cpu tf-nightly-gpu &>/dev/null || true && \
-    python3.11 -m pip install tf-nightly --no-cache-dir && \
-    echo "✅ TensorFlow Nightly 安装完成。" && \
-    # 添加基础验证步骤
-    echo "🧪 验证 TensorFlow Nightly 安装..." && \
-    python3.11 -c "import warnings; warnings.filterwarnings('ignore', category=FutureWarning); warnings.filterwarnings('ignore', category=UserWarning); import tensorflow as tf; print(f'TensorFlow Version (from Docker build): {tf.__version__}')" && \
-    echo "✅ TensorFlow Nightly 基础验证通过。" || \
-    # 如果安装或验证失败，则中止构建
-    (echo "❌ TensorFlow Nightly 安装或验证失败！" && exit 1)
+# ⚠️ 说明：
+# 该部分安装将在 run.sh 中动态判断 GPU 后执行，避免镜像膨胀或因无 GPU 环境构建失败
+# 原始代码已被注释保留以备参考
+# =======================================================
+
+# RUN echo "🔧 安装 TensorFlow Nightly (tf-nightly)..." && \
+#     # 尝试卸载旧版以防万一 (通常不需要，但在复杂环境中保险)
+#     # python3.11 -m pip uninstall -y tensorflow tensorflow-cpu tensorflow-gpu tensorboard tf-nightly tf-nightly-cpu tf-nightly-gpu &>/dev/null || true && \
+#     python3.11 -m pip install tf-nightly --no-cache-dir && \
+#     echo "✅ TensorFlow Nightly 安装完成。" && \
+#     # 添加基础验证步骤
+#     echo "🧪 验证 TensorFlow Nightly 安装..." && \
+#     python3.11 -c "import warnings; warnings.filterwarnings('ignore', category=FutureWarning); warnings.filterwarnings('ignore', category=UserWarning); import tensorflow as tf; print(f'TensorFlow Version (from Docker build): {tf.__version__}')" && \
+#     echo "✅ TensorFlow Nightly 基础验证通过。" || \
+#     (echo "❌ TensorFlow Nightly 安装或验证失败！" && exit 1)
+
+# ✅ 已迁移至 run.sh 的 [6.4] 阶段，并由 INSTALL_TENSORFLOW 控制运行
 
 # ================================
 # 🚩 创建非 root 用户 webui
