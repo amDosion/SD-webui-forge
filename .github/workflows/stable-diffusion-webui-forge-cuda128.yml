@@ -1,13 +1,11 @@
 name: stable-diffusion-webui-forge-cuda128
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # 每 6 小时检查一次
-  workflow_dispatch:      # 支持手动触发
+  workflow_dispatch:  # 仅手动触发或用于其他触发方式
 
 env:
   DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-cuda128
-  FORGE_REPO: https://github.com/amDosion/stable-diffusion-webui-forge-cuda128.git
+  FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
   AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 
 jobs:
@@ -23,27 +21,37 @@ jobs:
         run: |
           git clone --depth=1 $FORGE_REPO forge-latest
           git clone --depth=1 $AUTO_REPO auto-latest
-          
+
           echo "forge_sha=$(cd forge-latest && git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "auto_sha=$(cd auto-latest && git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: 🧠 Compare with cache
+      - name: 🧠 Compare with cached SHAs
         id: compare
         run: |
-          echo "${{ steps.upstream.outputs.forge_sha }}" > forge.sha
-          echo "${{ steps.upstream.outputs.auto_sha }}" > auto.sha
+          forge_sha="${{ steps.upstream.outputs.forge_sha }}"
+          auto_sha="${{ steps.upstream.outputs.auto_sha }}"
 
+          old_forge_sha=""
+          old_auto_sha=""
           if [ -f .sha_cache ]; then
-            if cmp -s .sha_cache forge.sha && cmp -s .sha_cache auto.sha; then
-              echo "✅ No changes in upstream"
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            old_forge_sha=$(head -n 1 .sha_cache)
+            old_auto_sha=$(tail -n 1 .sha_cache)
+          fi
+
+          echo "Old forge SHA: $old_forge_sha"
+          echo "New forge SHA: $forge_sha"
+          echo "Old auto SHA:  $old_auto_sha"
+          echo "New auto SHA:  $auto_sha"
+
+          if [ "$forge_sha" = "$old_forge_sha" ] && [ "$auto_sha" = "$old_auto_sha" ]; then
+            echo "✅ No changes in upstream"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           echo "🆕 Changes detected!"
-          cat forge.sha > .sha_cache
-          cat auto.sha >> .sha_cache
+          echo "$forge_sha" > .sha_cache
+          echo "$auto_sha" >> .sha_cache
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: 🧹 Free up Disk Space (for TensorRT)
@@ -78,4 +86,4 @@ jobs:
 
       - name: 🧹 Clean temp files
         run: |
-          rm -rf forge-latest auto-latest forge.sha auto.sha
+          rm -rf forge-latest auto-latest
