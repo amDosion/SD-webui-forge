@@ -68,7 +68,7 @@ RUN echo "🔧 安装 PyTorch Nightly Preview 和 Torch-TensorRT (CUDA 12.8)..."
     torch==2.8.0.dev20250326+cu128 \
     torchvision==0.22.0.dev20250326+cu128 \
     torchaudio==2.6.0.dev20250326+cu128 \
-    torch-tensorrt==2.7.0.dev20250325+cu128 \
+    torch-tensorrt==2.7.0.dev20250326+cu128 \
     --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
     --no-cache-dir && \
     echo "✅ PyTorch Nightly Preview 和 Torch-TensorRT 安装成功"
