@@ -679,33 +679,62 @@ fi
 # ==================================================
 echo "🚀 [11] 所有准备工作完成，开始启动 WebUI (直接执行 launch.py)..."
 echo "  - UI Type: ${UI}"
-# Forge 的 launch.py 通常接受类似的参数
-# 移除传递给 bash 的 -f 参数，直接将 $ARGS 传递给 launch.py
-echo "  - Arguments: ${ARGS}" # 注意：不再自动加 -f
 
-# 确认仍在 WebUI 的目标目录下
+# ⚙️ 打印关键环境依赖版本信息
+echo "📋 [11.1] 当前 Python & 依赖版本:"
+"$VENV_DIR/bin/python" -c "
+import sys
+print(f'🧠 Python 解释器: {sys.executable}')
+print(f'🐍 Python 版本: {sys.version}')
+
+try:
+    import torch
+    print(f'🔥 PyTorch: {torch.__version__} (CUDA: {torch.version.cuda})')
+except Exception as e:
+    print(f'🔥 PyTorch: 未安装或出错: {e}')
+
+try:
+    import xformers
+    print(f'🧩 xFormers: {xformers.__version__}')
+except Exception as e:
+    print(f'🧩 xFormers: 未安装或出错: {e}')
+
+try:
+    import tensorflow as tf
+    gpus = tf.config.list_physical_devices(\"GPU\")
+    print(f'🧠 TensorFlow: {tf.__version__} (GPU 可见: {len(gpus)})')
+except Exception as e:
+    print(f'🧠 TensorFlow: 未安装或出错: {e}')
+"
+
+# 拼接参数
+ALL_ARGS="$COMMANDLINE_ARGS $ARGS"
+echo "  - 启动参数 (ALL_ARGS): $ALL_ARGS"
+
+# 确保在 WebUI 的正确目录中
 CURRENT_DIR=$(pwd)
 if [[ "$CURRENT_DIR" != "$TARGET_DIR" ]]; then
-     echo "⚠️ 当前目录 ($CURRENT_DIR) 不是预期的 WebUI 目录 ($TARGET_DIR)，尝试切换..."
-     cd "$TARGET_DIR" || { echo "❌ 无法切换到目录 $TARGET_DIR，启动失败！"; exit 1; }
-     echo "✅ 已切换到目录: $(pwd)"
+    echo "⚠️ 当前目录 ($CURRENT_DIR) 不是预期的 WebUI 目录 ($TARGET_DIR)，尝试切换..."
+    cd "$TARGET_DIR" || { echo "❌ 无法切换到目录 $TARGET_DIR，启动失败！"; exit 1; }
+    echo "✅ 已切换到目录: $(pwd)"
 fi
 
-# 确认 launch.py 文件存在
+# 检查 launch.py 是否存在
 if [ ! -f "launch.py" ]; then
     echo "❌ 错误: 未在当前目录 ($(pwd)) 中找到 launch.py 文件！"
     exit 1
 fi
 
-# 记录最终启动时间
+# 打印执行时间和执行命令
 echo "⏳ WebUI 启动时间: $(date)"
-# 使用 venv 内的 python 解释器直接执行 launch.py
-echo "🚀 Executing: $VENV_DIR/bin/python launch.py $ARGS"
+echo "=================================================="
+echo "🚀 执行命令:"
+echo "$VENV_DIR/bin/python launch.py $ALL_ARGS"
+echo "=================================================="
 
-# 使用 exec 将当前 shell 进程替换为 launch.py 进程
-exec "$VENV_DIR/bin/python" launch.py $ARGS
+# 启动 WebUI，替换当前 shell
+exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
 
-# 如果 exec 成功执行，脚本不会到达这里
-# 如果 exec 失败
-echo "❌ 启动 launch.py 失败！请检查脚本是否存在、是否有执行权限以及之前的日志输出。"
+# 如果 exec 成功执行，脚本不会执行到这里
+echo "❌ 启动 launch.py 失败！请检查日志和执行权限。"
 exit 1
