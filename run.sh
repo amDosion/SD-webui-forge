@@ -259,17 +259,6 @@ pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
 # 安装 WebUI 核心依赖 (基于 UI 类型)
 # ==================================================
 echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
-# ==================================================
-# 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
-# ==================================================
-export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
-ARGS="$COMMANDLINE_ARGS $ARGS"
-echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
-
-# ==================================================
-# 安装 WebUI 核心依赖 (基于 UI 类型)
-# ==================================================
-echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
 
 # ==================================================
 # 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
@@ -511,39 +500,36 @@ clone_or_update_repo() {
     dirname=$(basename "$dir")
 
     # 检查是否启用了 Git 镜像以及是否是 GitHub URL
-    # 使用步骤 [2] 中定义的 GIT_MIRROR_URL
     if [[ "$USE_GIT_MIRROR" == "true" && "$repo_original" == "https://github.com/"* ]]; then
-        # 替换 github.com 为镜像地址 (只替换域名部分)
-        # 从 GIT_MIRROR_URL 提取 host
         local git_mirror_host
         git_mirror_host=$(echo "$GIT_MIRROR_URL" | sed 's|https://||; s|http://||; s|/.*||')
         repo_url=$(echo "$repo_original" | sed "s|github.com|$git_mirror_host|")
         echo "    - 使用镜像转换 (Git): $repo_original -> $repo_url"
     else
-        # 使用原始 URL
         repo_url="$repo_original"
     fi
 
     # 检查扩展下载开关
     if [[ "$ENABLE_DOWNLOAD_EXTS" != "true" ]]; then
-         if [ -d "$dir" ]; then
+        if [ -d "$dir" ]; then
             echo "    - ⏭️ 跳过更新扩展/仓库 (ENABLE_DOWNLOAD_EXTS=false): $dirname"
-         else
+        else
             echo "    - ⏭️ 跳过克隆扩展/仓库 (ENABLE_DOWNLOAD_EXTS=false): $dirname"
-         fi
-         return
+        fi
+        return
     fi
 
     # 尝试更新或克隆
-   if [ -d "$dir/.git" ]; then
-    echo "    - 🔄 更新扩展/仓库: $dirname (from $repo_url)"
-    (cd "$dir" && git pull --ff-only) || echo "      ⚠️ Git pull 失败: $dirname (可能存在本地修改或网络问题)"
+    if [ -d "$dir/.git" ]; then
+        echo "    - 🔄 更新扩展/仓库: $dirname (from $repo_url)"
+        (cd "$dir" && git pull --ff-only) || echo "      ⚠️ Git pull 失败: $dirname (可能存在本地修改或网络问题)"
     elif [ ! -d "$dir" ]; then
-    echo "    - 📥 克隆扩展/仓库: $repo_url -> $dirname (完整克隆)"
-    git clone --recursive "$repo_url" "$dir" || echo "      ❌ Git clone 失败: $dirname (检查 URL: $repo_url 和网络)"
-   else
-    echo "    - ✅ 目录已存在但非 Git 仓库，跳过 Git 操作: $dirname"
-fi
+        echo "    - 📥 克隆扩展/仓库: $repo_url -> $dirname (完整克隆)"
+        git clone --recursive "$repo_url" "$dir" || echo "      ❌ Git clone 失败: $dirname (检查 URL: $repo_url 和网络)"
+    else
+        echo "    - ✅ 目录已存在但非 Git 仓库，跳过 Git 操作: $dirname"
+    fi  # ✅ 这里是必须的
+}
 
 # 定义函数：下载文件 (支持独立 HF 镜像开关)
 download_with_progress() {
