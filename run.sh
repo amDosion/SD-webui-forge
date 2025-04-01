@@ -266,52 +266,91 @@ export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python
 ARGS="$COMMANDLINE_ARGS $ARGS"
 echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
 
+# ==================================================
+# 安装 WebUI 核心依赖 (基于 UI 类型)
+# ==================================================
+echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
 
-# 如果是 Forge UI，跳过手动安装，依赖其启动脚本
+# ==================================================
+# 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
+# ==================================================
+export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
+ARGS="$COMMANDLINE_ARGS $ARGS"
+echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
+
+# ==================================================
+# 根据 UI 类型决定依赖处理方式
+# ==================================================
 if [ "$UI" = "forge" ]; then
-    echo "  - (Forge UI) 依赖安装将由 $WEBUI_EXECUTABLE 处理，此处跳过手动 pip install。"
-    echo "  - Forge 通常会处理 xformers 等关键依赖的安装或检查。"
-else
-    # 如果是 Automatic1111 或其他非 Forge UI
-    REQ_FILE_TO_INSTALL="requirements_versions.txt" # 优先使用版本锁定的文件
-    if [ ! -f "$REQ_FILE_TO_INSTALL" ]; then
-        REQ_FILE_TO_INSTALL="requirements.txt" # 否则使用普通 requirements 文件
+    echo "  - (Forge UI) 使用 run.sh 控制依赖安装流程"
+
+    INSTALL_TORCH="${INSTALL_TORCH:-true}"
+    if [[ "$INSTALL_TORCH" == "true" ]]; then
+        TORCH_COMMAND="pip install --pre torch==2.8.0.dev20250326+cu128 torchvision==0.22.0.dev20250326+cu128 torchaudio==2.6.0.dev20250326+cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu128"
+        echo "  - 安装 PyTorch Nightly: $TORCH_COMMAND"
+        $TORCH_COMMAND && echo "    ✅ PyTorch 安装成功" || echo "    ❌ PyTorch 安装失败"
+    else
+        echo "  - ⏭️ 跳过 PyTorch 安装 (INSTALL_TORCH=false)"
     fi
 
-    # 如果找到了依赖文件
+    # requirements.txt（用于补充小依赖）
+    REQ_FILE_TO_INSTALL="requirements_versions.txt"
+    if [ ! -f "$REQ_FILE_TO_INSTALL" ]; then
+        REQ_FILE_TO_INSTALL="requirements.txt"
+    fi
+
     if [ -f "$REQ_FILE_TO_INSTALL" ]; then
-        echo "  - 使用 $REQ_FILE_TO_INSTALL 安装依赖 (允许预发布版本 --pre)..."
-        # 添加注释，说明 xformers 已在 Dockerfile 中构建
-        echo "  - (注意: xformers 预计已在 Dockerfile 中从源码构建，pip 应跳过)"
-        # 修复可能的 Windows 换行符 (保险起见)
+        echo "  - 使用 $REQ_FILE_TO_INSTALL 安装其他依赖（跳过已存在的 xformers）..."
         sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
-        # 逐行读取依赖文件并安装
+
         while IFS= read -r line || [[ -n "$line" ]]; do
-            # 清理行内容：移除注释、前后空格
             line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-            # 跳过空行
             [[ -z "$line" ]] && continue
+            [[ "$line" == *xformers* ]] && echo "    - ⏭️ 跳过 xformers（已从源码编译）" && continue
 
             echo "    - 安装: ${line}"
-            # 使用 --pre 允许安装预发布版本 (对 Nightly 环境兼容性重要)
-            # 使用 --no-cache-dir 减少镜像体积/缓存问题
-            # 使用 --extra-index-url 查找 PyTorch Nightly 包
             pip install --pre "${line}" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
                 | tee -a "$LOG_FILE" \
                 | sed 's/^Successfully installed/      ✅ 成功安装/' \
-                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/' # 更好地显示跳过的包
-            # 检查 pip install 的退出状态
+                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
             if [ ${PIPESTATUS[0]} -ne 0 ]; then
                 echo "❌ 安装失败: ${line}"
-                # 可以考虑在此处添加退出逻辑 `exit 1`，如果单个依赖失败就中断
+            fi
+        done < "$REQ_FILE_TO_INSTALL"
+        echo "  - 其他依赖安装完成。"
+    else
+        echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，跳过补充依赖安装"
+    fi
+
+else
+    # 🔁 保持原有处理方式（非 Forge）
+    REQ_FILE_TO_INSTALL="requirements_versions.txt"
+    if [ ! -f "$REQ_FILE_TO_INSTALL" ]; then
+        REQ_FILE_TO_INSTALL="requirements.txt"
+    fi
+
+    if [ -f "$REQ_FILE_TO_INSTALL" ]; then
+        echo "  - 使用 $REQ_FILE_TO_INSTALL 安装依赖 (允许预发布版本 --pre)..."
+        sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            [[ -z "$line" ]] && continue
+
+            echo "    - 安装: ${line}"
+            pip install --pre "${line}" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+                | tee -a "$LOG_FILE" \
+                | sed 's/^Successfully installed/      ✅ 成功安装/' \
+                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                echo "❌ 安装失败: ${line}"
             fi
         done < "$REQ_FILE_TO_INSTALL"
         echo "  - $REQ_FILE_TO_INSTALL 中的依赖处理完成。"
     else
-        # 如果找不到依赖文件
         echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，无法自动安装核心依赖。请检查 WebUI 仓库内容。"
     fi
-fi # 结束 UI 类型判断
+fi
 
 # ==================================================
 # 🔧 [6.3] Ninja + xformers 编译安装（可选）
