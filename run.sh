@@ -281,64 +281,58 @@ if [ "$UI" = "forge" ]; then
     else
         echo "  - ⏭️ 跳过 PyTorch 安装 (INSTALL_TORCH=false)"
     fi
+fi
 
-    # requirements.txt（用于补充小依赖）
-    REQ_FILE_TO_INSTALL="requirements_versions.txt"
-    if [ ! -f "$REQ_FILE_TO_INSTALL" ]; then
-        REQ_FILE_TO_INSTALL="requirements.txt"
-    fi
+# ==================================================
+# 核心依赖安装（通用于 forge 和 auto）
+# ==================================================
+REQ_FILE_TO_INSTALL="requirements_versions.txt"
+[ ! -f "$REQ_FILE_TO_INSTALL" ] && REQ_FILE_TO_INSTALL="requirements.txt"
 
-    if [ -f "$REQ_FILE_TO_INSTALL" ]; then
-        echo "  - 使用 $REQ_FILE_TO_INSTALL 安装其他依赖（跳过已存在的 xformers）..."
-        sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
+if [ -f "$REQ_FILE_TO_INSTALL" ]; then
+    echo "  - 使用 $REQ_FILE_TO_INSTALL 安装其他依赖（跳过 xformers，避免降级）..."
+    sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
 
-        while IFS= read -r line || [[ -n "$line" ]]; do
-            line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-            [[ -z "$line" ]] && continue
-            [[ "$line" == *xformers* ]] && echo "    - ⏭️ 跳过 xformers（已从源码编译）" && continue
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # 清理注释和空行
+        clean_line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+        [[ -z "$clean_line" ]] && continue
 
-            echo "    - 安装: ${line}"
-            pip install --pre "${line}" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
-                | tee -a "$LOG_FILE" \
-                | sed 's/^Successfully installed/      ✅ 成功安装/' \
-                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
-            if [ ${PIPESTATUS[0]} -ne 0 ]; then
-                echo "❌ 安装失败: ${line}"
+        # 处理格式：pkg==version
+        pkg=$(echo "$clean_line" | cut -d '=' -f1)
+        ver=$(echo "$clean_line" | sed -E 's/.*==([0-9][^ ]*)/\1/')
+
+        if [[ "$pkg" == *xformers* ]]; then
+            echo "    - ⏭️ 跳过 xformers（已从源码编译）"
+            continue
+        fi
+
+        # 检查已安装版本
+        installed_ver=$(pip show "$pkg" 2>/dev/null | grep ^Version: | awk '{print $2}')
+
+        if [ -n "$installed_ver" ]; then
+            # 比较版本（不降级）
+            if python -c "from packaging.version import parse; exit(0) if parse('$installed_ver') >= parse('$ver') else exit(1)"; then
+                echo "    - ⏩ 已安装 $pkg==$installed_ver >= $ver，跳过"
+                continue
             fi
-        done < "$REQ_FILE_TO_INSTALL"
-        echo "  - 其他依赖安装完成。"
-    else
-        echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，跳过补充依赖安装"
-    fi
+        fi
 
+        # 执行安装
+        echo "    - 安装: $pkg==$ver"
+        pip install --pre "$pkg==$ver" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+            | tee -a "$LOG_FILE" \
+            | sed 's/^Successfully installed/      ✅ 成功安装/' \
+            | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
+
+        if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ 安装失败: ${pkg}==${ver}"
+        fi
+    done < "$REQ_FILE_TO_INSTALL"
+
+    echo "  - $REQ_FILE_TO_INSTALL 中的依赖处理完成。"
 else
-    # 🔁 保持原有处理方式（非 Forge）
-    REQ_FILE_TO_INSTALL="requirements_versions.txt"
-    if [ ! -f "$REQ_FILE_TO_INSTALL" ]; then
-        REQ_FILE_TO_INSTALL="requirements.txt"
-    fi
-
-    if [ -f "$REQ_FILE_TO_INSTALL" ]; then
-        echo "  - 使用 $REQ_FILE_TO_INSTALL 安装依赖 (允许预发布版本 --pre)..."
-        sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
-
-        while IFS= read -r line || [[ -n "$line" ]]; do
-            line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-            [[ -z "$line" ]] && continue
-
-            echo "    - 安装: ${line}"
-            pip install --pre "${line}" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
-                | tee -a "$LOG_FILE" \
-                | sed 's/^Successfully installed/      ✅ 成功安装/' \
-                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
-            if [ ${PIPESTATUS[0]} -ne 0 ]; then
-                echo "❌ 安装失败: ${line}"
-            fi
-        done < "$REQ_FILE_TO_INSTALL"
-        echo "  - $REQ_FILE_TO_INSTALL 中的依赖处理完成。"
-    else
-        echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，无法自动安装核心依赖。请检查 WebUI 仓库内容。"
-    fi
+    echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，跳过依赖安装"
 fi
 
 # ==================================================
@@ -372,7 +366,6 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
 else
   echo "⏭️ [6.3] 跳过 xformers 源码编译（INSTALL_XFORMERS=false）"
 fi
-
 
 # ==================================================
 # [6.4] TensorFlow 编译（支持 GPU 和 CUDA 12.8）
