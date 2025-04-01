@@ -497,16 +497,15 @@ clone_or_update_repo() {
     fi
 
     # 尝试更新或克隆
-    if [ -d "$dir/.git" ]; then
-        echo "    - 🔄 更新扩展/仓库: $dirname (from $repo_url)"
-        (cd "$dir" && git pull --ff-only) || echo "      ⚠️ Git pull 失败: $dirname (可能存在本地修改或网络问题)"
+   if [ -d "$dir/.git" ]; then
+    echo "    - 🔄 更新扩展/仓库: $dirname (from $repo_url)"
+    (cd "$dir" && git pull --ff-only) || echo "      ⚠️ Git pull 失败: $dirname (可能存在本地修改或网络问题)"
     elif [ ! -d "$dir" ]; then
-        echo "    - 📥 克隆扩展/仓库: $repo_url -> $dirname (浅克隆)"
-        git clone --depth=1 "$repo_url" "$dir" || echo "      ❌ Git clone 失败: $dirname (检查 URL: $repo_url 和网络)"
-    else
-        echo "    - ✅ 目录已存在但非 Git 仓库，跳过 Git 操作: $dirname"
-    fi
-}
+    echo "    - 📥 克隆扩展/仓库: $repo_url -> $dirname (完整克隆)"
+    git clone --recursive "$repo_url" "$dir" || echo "      ❌ Git clone 失败: $dirname (检查 URL: $repo_url 和网络)"
+   else
+    echo "    - ✅ 目录已存在但非 Git 仓库，跳过 Git 操作: $dirname"
+fi
 
 # 定义函数：下载文件 (支持独立 HF 镜像开关)
 download_with_progress() {
