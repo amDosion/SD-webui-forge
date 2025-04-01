@@ -166,8 +166,6 @@ echo "  - Git 仓库源: $REPO (将克隆默认/主分支)"
 # ==================================================
 # 克隆/更新 WebUI 仓库
 # ==================================================
-echo "🔄 [4] 克隆或更新 WebUI 仓库..."
-# 检查仓库是否已存在
 if [ -d "$TARGET_DIR/.git" ]; then
   echo "  - 仓库已存在于 $TARGET_DIR，尝试更新 (git pull)..."
   # 进入目录执行 git pull, --ff-only 避免合并冲突
@@ -176,17 +174,18 @@ if [ -d "$TARGET_DIR/.git" ]; then
   # 操作完成后返回上层目录
   cd /app/webui
 else
-  echo "  - 仓库不存在，开始克隆 $REPO 到 $TARGET_DIR (浅克隆)..."
-  # 使用 --depth 1 浅克隆，节省时间和空间
-  git clone "$REPO" "$TARGET_DIR"
-  # 赋予启动脚本执行权限
-  if [ -f "$TARGET_DIR/$WEBUI_EXECUTABLE" ]; then
-      chmod +x "$TARGET_DIR/$WEBUI_EXECUTABLE"
-      echo "  - 已赋予 $TARGET_DIR/$WEBUI_EXECUTABLE 执行权限"
-  else
-      echo "⚠️ 未在克隆的仓库 $TARGET_DIR 中找到预期的启动脚本 $WEBUI_EXECUTABLE"
-      # 考虑是否需要添加错误处理或退出逻辑
-  fi
+ echo "  - 仓库不存在，开始完整克隆 $REPO 到 $TARGET_DIR ..."
+ # 使用完整克隆（非浅克隆），并初始化子模块（推荐）
+ git clone --recursive "$REPO" "$TARGET_DIR"
+
+ # 赋予启动脚本执行权限
+ if [ -f "$TARGET_DIR/$WEBUI_EXECUTABLE" ]; then
+    chmod +x "$TARGET_DIR/$WEBUI_EXECUTABLE"
+    echo "  - 已赋予 $TARGET_DIR/$WEBUI_EXECUTABLE 执行权限"
+ else
+    echo "⚠️ 未在克隆的仓库 $TARGET_DIR 中找到预期的启动脚本 $WEBUI_EXECUTABLE"
+    # 可以考虑是否添加 exit 1
+ fi
 fi
 echo "✅ 仓库操作完成"
 
