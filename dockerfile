@@ -88,29 +88,6 @@ RUN echo "🔧 安装其他 Python 依赖 (如 insightface)..." && \
         insightface && \
     echo "✅ 其他 Python 依赖安装完成"
 
-# ====================================
-# 🚩 安装构建工具 Ninja (加速 xformers 编译)
-# ====================================
-RUN echo "🔧 安装 Ninja 用于加速编译..." && \
-    python3.11 -m pip install ninja --no-cache-dir && \
-    echo "✅ Ninja 安装成功"
-
-# ====================================
-# 🚩 从源码编译安装 xformers (匹配 PyTorch Nightly & CUDA 12.8)
-# ====================================
-# 设置目标 GPU 架构为 Ada Lovelace (RTX 4090), Compute Capability 8.9
-# 如需构建时覆盖，使用 --build-arg TARGET_ARCH="arch"
-ARG TARGET_ARCH="8.9"
-ENV TORCH_CUDA_ARCH_LIST=$TARGET_ARCH
-# 从 GitHub main 分支编译最新 xformers
-# 这可能需要较长时间 (几分钟到几十分钟)
-# -v 提供详细输出，-U 确保升级（如果存在旧版本）
-RUN echo "🔧 开始从源码编译 xformers (目标架构: ${TORCH_CUDA_ARCH_LIST} for Ada Lovelace/RTX 4090) - 这可能需要很长时间..." && \
-    python3.11 -m pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers --no-cache-dir && \
-    echo "✅ xformers 从源码编译安装完成"
-# 可选：清理编译时设置的环境变量，如果后续步骤不需要
-# ENV TORCH_CUDA_ARCH_LIST=""
-
 # ================================
 # 🚩 创建非 root 用户 webui
 # ================================
