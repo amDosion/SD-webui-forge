@@ -260,6 +260,13 @@ pip install --upgrade "huggingface_hub[cli]" | tee -a "$LOG_FILE"
 # 安装 WebUI 核心依赖 (基于 UI 类型)
 # ==================================================
 echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
+# ==================================================
+# 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
+# ==================================================
+export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
+ARGS="$COMMANDLINE_ARGS $ARGS"
+echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
+
 
 # 如果是 Forge UI，跳过手动安装，依赖其启动脚本
 if [ "$UI" = "forge" ]; then
