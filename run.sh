@@ -308,74 +308,68 @@ else
 fi # 结束 UI 类型判断
 
 # ==================================================
-# TensorFlow 安装 (可选，在 venv 内)
+# [6.4] TensorFlow 编译（支持 GPU 和 CUDA 12.8）
 # ==================================================
-# 通过环境变量 INSTALL_TENSORFLOW 控制是否安装，默认为 false
 INSTALL_TENSORFLOW="${INSTALL_TENSORFLOW:-false}"
 if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
-    echo "🧠 [6.4] 按需安装 TensorFlow (版本需兼容 CUDA 12.8)..."
-    # 检查 CPU 是否支持 AVX2 (TensorFlow 官方包需要)
-    echo "  - 正在检测 CPU 支持情况..."
-    CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}' || echo "未知")
-    AVX2_SUPPORTED=$(grep -q avx2 /proc/cpuinfo && echo "true" || echo "false")
-    echo "    - CPU Vendor: ${CPU_VENDOR}"
-    echo "    - AVX2 支持: ${AVX2_SUPPORTED}"
+    echo "🧠 [6.4] 动态编译 TensorFlow (支持 CUDA 12.8)..."
 
-    # 设置 TensorFlow 版本 (选择一个已知支持 CUDA 12.x 的版本)
-    TF_VERSION="2.16.1"
-    TF_CPU_VERSION="2.16.1"
-    echo "    - 目标 TensorFlow 版本: ${TF_VERSION} (GPU) / ${TF_CPU_VERSION} (CPU)"
-
-    # 仅在支持 AVX2 时尝试安装官方包
-    if [[ "$AVX2_SUPPORTED" == "true" ]]; then
-        echo "    - AVX2 支持，继续安装 TensorFlow..."
-        # 尝试卸载可能存在的旧版本
-        echo "    - 尝试卸载旧的 TensorFlow (以防万一)..."
-        pip uninstall -y tensorflow tensorflow-cpu tensorflow-gpu tensorboard tf-nightly &>/dev/null || true
-        TF_PACKAGE="" # 初始化包名
-
-        # 检测是否有 GPU (通过 nvidia-smi) 来决定安装 GPU 还是 CPU 版本
-        if command -v nvidia-smi &>/dev/null; then
-            echo "    - 检测到 GPU (nvidia-smi)，尝试安装 TensorFlow GPU 版本: ${TF_VERSION}..."
-            TF_PACKAGE="tensorflow==${TF_VERSION}"
-        else
-            echo "    - 未检测到 GPU，安装 TensorFlow CPU 版本: ${TF_CPU_VERSION}..."
-            TF_PACKAGE="tensorflow-cpu==${TF_CPU_VERSION}"
-        fi
-
-        # 执行安装
-        echo "    - 安装: ${TF_PACKAGE}"
-        pip install "${TF_PACKAGE}" --no-cache-dir | tee -a "$LOG_FILE"
-        if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "❌ TensorFlow 安装失败!"
-            # 可以考虑添加退出逻辑
-        else
-            echo "    - ✅ TensorFlow (${TF_PACKAGE}) 安装命令执行完成。"
-            # 如果安装了 GPU 版本，进行验证
-            echo "    - 🧪 验证 TensorFlow 可用性..."
-            if [[ "$TF_PACKAGE" == *"tensorflow=="* ]]; then
-                # 使用 python -c 执行验证脚本
-                python -c "import warnings; warnings.filterwarnings('ignore', category=FutureWarning); warnings.filterwarnings('ignore', category=UserWarning); import tensorflow as tf; print(f'TensorFlow Version: {tf.__version__}'); gpus = tf.config.list_physical_devices('GPU'); print(f'Num GPUs Available: {len(gpus)}'); print(f'Available GPUs: {gpus}'); assert len(gpus) > 0, 'TensorFlow failed to detect GPU'"
-                if [ $? -eq 0 ]; then
-                    echo "    - ✅ TensorFlow 成功检测到 GPU！"
-                else
-                    echo "    - ⚠️ TensorFlow 未能检测到 GPU 或验证失败。请检查 CUDA/cuDNN 版本与 TensorFlow 版本的兼容性以及 Nvidia 驱动。"
-                fi
-            else
-                 echo "    - (安装了 CPU 版本，进行 CPU 验证)"
-                 python -c "import tensorflow as tf; print(f'TensorFlow Version: {tf.__version__}'); print('TensorFlow CPU version confirmed.')"
-            fi
-        fi
+    # 检查是否已是 tf-nightly（版本中包含 'dev' 或 'nightly'）
+    TF_INSTALLED_VERSION=$(python -c "import tensorflow as tf; print(tf.__version__)" 2>/dev/null || echo "not_installed")
+    if [[ "$TF_INSTALLED_VERSION" == *"dev"* || "$TF_INSTALLED_VERSION" == *"nightly"* ]]; then
+        echo "    - ✅ 已安装 tf-nightly: $TF_INSTALLED_VERSION，跳过编译步骤。"
     else
-        # 如果不支持 AVX2
-        echo "    - ⚠️ 未检测到 AVX2 指令集。标准的 TensorFlow pip 包可能无法运行。"
-        echo "    - 跳过 TensorFlow 安装。如果需要，请考虑从源码编译或使用其他提供非 AVX2 支持的 TensorFlow 构建。"
-        # 可以选择安装一个旧版本或特定构建，但这超出了标准安装范围
+        echo "    - ℹ️ 当前 TensorFlow 版本: $TF_INSTALLED_VERSION (将开始编译 tf-nightly)..."
+
+        # 检查 CPU 是否支持 AVX2
+        echo "    - 检测 CPU 支持情况..."
+        CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}' || echo "未知")
+        AVX2_SUPPORTED=$(grep -q avx2 /proc/cpuinfo && echo "true" || echo "false")
+        echo "      - CPU Vendor: ${CPU_VENDOR}"
+        echo "      - AVX2 支持: ${AVX2_SUPPORTED}"
+
+        if [[ "$AVX2_SUPPORTED" != "true" ]]; then
+            echo "      - ⚠️ 当前 CPU 不支持 AVX2，TensorFlow 编译可能无法成功。跳过编译。"
+        else
+            # 清理可能存在的旧版本
+            echo "    - 清理旧版本 TensorFlow..."
+            pip uninstall -y tensorflow* tf-nightly* &>/dev/null || true
+
+            # 开始 TensorFlow 编译
+            echo "    - 开始编译 tf-nightly..."
+            cd tensorflow  # 确保当前在 TensorFlow 源代码目录
+
+            # 运行配置步骤（确保选择了 CUDA 支持）
+            ./configure
+
+            # 编译并生成 .whl 文件
+            bazel build --config=cuda //tensorflow/tools/pip_package:build_pip_package
+
+            # 生成安装包
+            ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+
+            # 安装生成的 .whl 文件
+            pip install /tmp/tensorflow_pkg/tensorflow-version-tags.whl
+
+            echo "    - ✅ TensorFlow 编译并安装完成"
+        fi
     fi
+
+    # 验证 TensorFlow 是否支持 GPU
+    echo "    - 🧪 验证 TensorFlow 是否支持 GPU..."
+    python -c "
+import tensorflow as tf
+gpus = tf.config.list_physical_devices('GPU')
+print(f'Num GPUs Available: {len(gpus)}')
+if gpus:
+    print(f'✅ 检测到 GPU 数量: {len(gpus)}')
+else:
+    print('⚠️ 未检测到 GPU，将使用 CPU')
+" || echo "⚠️ TensorFlow 启动时检测异常，但未强制中断。"
+
 else
-    # 如果 INSTALL_TENSORFLOW 不为 true
-    echo "⏭️ [6.4] 跳过 TensorFlow 安装 (INSTALL_TENSORFLOW 未设置为 true)。"
-fi # 结束 TensorFlow 安装块
+    echo "⏭️ [6.4] 跳过 TensorFlow 编译 (INSTALL_TENSORFLOW 未设置为 true)。"
+fi # 结束 TensorFlow 编译块
 
 # ==================================================
 # 创建 WebUI 相关目录
