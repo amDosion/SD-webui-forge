@@ -14,17 +14,19 @@ RUN echo "🔧 设置时区为 ${TZ}..." && \
     echo "✅ 时区设置成功：${TZ}"
 
 # ====================================
-# 🚩 系统依赖 + Python 3.11 环境 + 构建工具
+# 🚩 系统依赖 + Python 3.11 环境 + 构建工具 + JQ工具
 # ====================================
 # 更新包列表，升级已安装包，并安装所需依赖
 # - 安装 Python 3.11 及其开发和虚拟环境工具
 # - 使用 get-pip.py 安装最新版 pip for Python 3.11
 # - 设置 python3 命令指向 python3.11
-# - 安装其他编译、图形、系统管理等基础依赖
+# - 安装其他编译、图形、系统管理等基础依赖, 并且在最后添加  jq 的安装指令
 # - 在同一层清理 apt 缓存以减小镜像体积
-RUN echo "🔧 更新系统并安装基本依赖 (包括 Python 3.11 for Nightly builds)..." && \
+RUN echo "🔧 更新系统并安装基本依赖 (包括 Python 3.11 for Nightly builds, jq)..." && \
     apt-get update && \
     apt-get upgrade -y && \
+    # 安装 jq 命令
+    apt-get install -y jq && \
     # 安装 Python 3.11 相关包
     apt-get install -y --no-install-recommends \
         python3.11 \
@@ -39,7 +41,7 @@ RUN echo "🔧 更新系统并安装基本依赖 (包括 Python 3.11 for Nightly
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
         lsb-release software-properties-common && \
-    echo "✅ Python 3.11 及系统依赖安装初步完成" && \
+    echo "✅ Python 3.11, jq 及系统依赖安装初步完成" && \
     # 使用 get-pip.py 安装 pip for Python 3.11
     echo "📦 安装 pip for Python 3.11..." && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
