@@ -315,9 +315,42 @@ else
 fi # 结束 UI 类型判断
 
 # ==================================================
+# 🔧 [6.3] Ninja + xformers 编译安装（可选）
+# ==================================================
+INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}"
+
+if [[ "$INSTALL_XFORMERS" == "true" ]]; then
+  echo "⚙️ [6.3] 正在编译并安装 xformers（适配 CUDA 12.8）"
+
+  # 安装 Ninja 加速编译
+  echo "  - 安装 Ninja..."
+  pip install ninja --no-cache-dir && echo "    ✅ Ninja 安装成功"
+
+  # 设置 CUDA 架构（默认 8.9 for Ada）
+  export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}"
+  echo "  - 使用 CUDA 架构: $TORCH_CUDA_ARCH_LIST"
+
+  # 编译安装 xformers
+  echo "  - 正在从 GitHub 编译安装 xformers..."
+  pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers --no-cache-dir
+
+  if [ $? -eq 0 ]; then
+    echo "    ✅ xformers 编译并安装成功"
+  else
+    echo "    ❌ xformers 编译或安装失败！请检查 CUDA、PyTorch 环境或网络连接"
+  fi
+
+  # 可选：清理环境变量
+  unset TORCH_CUDA_ARCH_LIST
+else
+  echo "⏭️ [6.3] 跳过 xformers 源码编译（INSTALL_XFORMERS=false）"
+fi
+
+
+# ==================================================
 # [6.4] TensorFlow 编译（支持 GPU 和 CUDA 12.8）
 # ==================================================
-INSTALL_TENSORFLOW="${INSTALL_TENSORFLOW:-false}"
+INSTALL_TENSORFLOW="${INSTALL_TENSORFLOW:-true}"
 if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
     echo "🧠 [6.4] 动态编译 TensorFlow (支持 CUDA 12.8)..."
 
