@@ -150,9 +150,8 @@ if [ "$UI" = "auto" ]; then
 elif [ "$UI" = "forge" ]; then
   TARGET_DIR="/app/webui/sd-webui-forge"
   # 使用官方 Forge 仓库
-  REPO="https://github.com/lllyasviel/stable-diffusion-webui-forge.git"
-  # 如果需要特定 fork，在此处修改:
-  # REPO="https://github.com/amDosion/stable-diffusion-webui-forge-cuda128.git"
+  REPO="https://github.com/amDosion/stable-diffusion-webui-forge-cuda128.git"
+
 elif [ "$UI" = "stable_diffusion_webui" ]; then # auto 的别名
   TARGET_DIR="/app/webui/stable-diffusion-webui"
   REPO="https://github.com/AUTOMATIC1111/stable-diffusion-webui.git"
@@ -195,22 +194,23 @@ cd "$TARGET_DIR" || { echo "❌ 无法切换到 WebUI 目标目录 $TARGET_DIR";
 # ==================================================
 # requirements 文件检查 (仅非 Forge UI)
 # ==================================================
-# Forge UI 有自己的依赖管理方式，通常通过其启动脚本处理
+# 注意：Forge UI 默认通过 webui.sh 自动安装依赖，但当前配置已跳过其官方依赖处理步骤 (--skip-install 等参数已设置)。
+# 因此此处不需要检查requirements文件的存在性。实际依赖的安装和版本控制将在后续步骤 (【6.2】) 中明确处理。
 if [ "$UI" != "forge" ]; then
+    # 非 Forge UI 情况下的检查逻辑
     echo "🔧 [5] (非 Forge UI) 检查 requirements 文件..."
     REQ_FILE_CHECK="requirements_versions.txt"
     if [ ! -f "$REQ_FILE_CHECK" ]; then
-        REQ_FILE_CHECK="requirements.txt" # 回退检查 requirements.txt
+        REQ_FILE_CHECK="requirements.txt"
     fi
     if [ -f "$REQ_FILE_CHECK" ]; then
         echo "  - 将使用 $REQ_FILE_CHECK 文件安装依赖。"
-        # 此处不进行清理，依赖文件应保持原样
     else
         echo "  - ⚠️ 未找到 $REQ_FILE_CHECK 或 requirements.txt。依赖安装可能不完整。"
     fi
 else
-    # 对于 Forge，跳过此步骤
-    echo "⚙️ [5] (Forge UI) 跳过手动处理 requirements 文件的步骤 (由 Forge $WEBUI_EXECUTABLE 自行处理)。"
+    # Forge UI 已跳过官方安装步骤，手动安装将在后续步骤执行
+    echo "⚙️ [5] (Forge UI) 已跳过官方依赖处理，手动安装将在后续步骤执行。"
 fi
 
 # ==================================================
@@ -268,7 +268,7 @@ ARGS="$COMMANDLINE_ARGS $ARGS"
 echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
 
 # ==================================================
-# 根据 UI 类型决定依赖处理方式
+# 根据 UI 类型决定依赖处理方式（从JSON文件获取）
 # ==================================================
 if [ "$UI" = "forge" ]; then
     echo "  - (Forge UI) 使用 run.sh 控制依赖安装流程"
@@ -281,58 +281,85 @@ if [ "$UI" = "forge" ]; then
     else
         echo "  - ⏭️ 跳过 PyTorch 安装 (INSTALL_TORCH=false)"
     fi
-fi
 
-# ==================================================
-# 核心依赖安装（通用于 forge 和 auto）
-# ==================================================
-REQ_FILE_TO_INSTALL="requirements_versions.txt"
-[ ! -f "$REQ_FILE_TO_INSTALL" ] && REQ_FILE_TO_INSTALL="requirements.txt"
+    # ========== 核心依赖安装（增强：跳过 xformers，不降级） ==========
+    REQ_JSON_FILE="requirements_versions.json"
+        #这个变量用于动态读取， 方便用户自己进行变量管理
+    export GITHUB_RAW_URL="https://raw.githubusercontent.com/amDosion/stable-diffusion-webui-forge-cuda128/main/requirements_versions.json"
 
-if [ -f "$REQ_FILE_TO_INSTALL" ]; then
-    echo "  - 使用 $REQ_FILE_TO_INSTALL 安装其他依赖（跳过 xformers，避免降级）..."
-    sed -i 's/\r$//' "$REQ_FILE_TO_INSTALL"
+    # 检查是否存在json 文件，如果不存在，则从github下载，或者也可以考虑是使用原有的，保证最基本的盘存在
+        if [ ! -f "$REQ_JSON_FILE" ]; then
+            echo "正在从github上下载:    $GITHUB_RAW_URL"
+            curl -o "$REQ_JSON_FILE" -L "$GITHUB_RAW_URL"
+            if [ ! -f "$REQ_JSON_FILE" ]; then
+                  echo "❌ 下载 $REQ_JSON_FILE 失败，将跳过该文件！"
+              #   exit 1  # 还是选择跳过 保证原流程可以进行
+            fi
+    fi
+    if [ -f "$REQ_JSON_FILE" ]; then
+        echo "  - 使用 $REQ_JSON_FILE 安装其他依赖（跳过已存在的 xformers，避免降级）..."
 
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # 清理注释和空行
-        clean_line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-        [[ -z "$clean_line" ]] && continue
-
-        # 处理格式：pkg==version
-        pkg=$(echo "$clean_line" | cut -d '=' -f1)
-        ver=$(echo "$clean_line" | sed -E 's/.*==([0-9][^ ]*)/\1/')
-
-        if [[ "$pkg" == *xformers* ]]; then
-            echo "    - ⏭️ 跳过 xformers（已从源码编译）"
-            continue
+        # 安装 jq 用于解析 JSON 如果还是无法使用，请直接修改源文件
+        if ! command -v jq &>/dev/null; then
+            echo "❌ 缺少  jq (用于解析JSON)，跳过"
         fi
 
-        # 检查已安装版本
-        installed_ver=$(pip show "$pkg" 2>/dev/null | grep ^Version: | awk '{print $2}')
+        # 读取 JSON 并逐条处理依赖
+       jq -r 'to_entries[] | "\(.key)==\(.value)"' "$REQ_JSON_FILE" | while IFS= read -r requirement; do
+            pkg=$(echo "$requirement" | cut -d '=' -f1)
+            ver=$(echo "$requirement" | sed 's/.*==//')
 
-        if [ -n "$installed_ver" ]; then
-            # 比较版本（不降级）
-            if python -c "from packaging.version import parse; exit(0) if parse('$installed_ver') >= parse('$ver') else exit(1)"; then
-                echo "    - ⏩ 已安装 $pkg==$installed_ver >= $ver，跳过"
+            # 跳过 xformers
+            if [[ "$pkg" == *xformers* ]]; then
+                echo "    - ⏭️ 跳过 xformers（已从源码编译）"
                 continue
             fi
-        fi
 
-        # 执行安装
-        echo "    - 安装: $pkg==$ver"
-        pip install --pre "$pkg==$ver" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
-            | tee -a "$LOG_FILE" \
-            | sed 's/^Successfully installed/      ✅ 成功安装/' \
-            | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
+            # 检查系统已安装版本
+            installed_ver=$(pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')
+            if [ -n "$installed_ver" ]; then
+               testResult =$(python -c "
+from packaging.version import parse
+import sys
+sys.exit(0) if parse('$installed_ver') > = parse('$ver') else sys.exit(1)
+")
+                if [ $? -eq 0 ]; then
+                    echo "   - ⏩ 已安装 $pkg==$installed_ver >= $ver，跳过"
+                    continue
+                fi
+            fi
 
-        if [ ${PIPESTATUS[0]} -ne 0 ]; then
-            echo "❌ 安装失败: ${pkg}==${ver}"
-        fi
-    done < "$REQ_FILE_TO_INSTALL"
+            # 稳健的安装方式
+echo "正在从PyPI安装: $pkg"
+output=$(pip install --pre "$pkg==$ver" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1)
+pip_exit_status=$?
 
-    echo "  - $REQ_FILE_TO_INSTALL 中的依赖处理完成。"
+echo "$output" >> "$LOG_FILE"
+
+# 控制台美化输出
+if echo "$output" | grep -q "Successfully installed"; then
+    echo "      ✅ 成功安装 $pkg==$ver"
+elif echo "$output" | grep -q "Requirement already satisfied"; then
+    echo "      ⏩ 需求已满足 $pkg==$ver"
 else
-    echo "⚠️ 未找到 $REQ_FILE_TO_INSTALL 或 requirements.txt，跳过依赖安装"
+    echo "$output"
+fi
+
+if [ $pip_exit_status -ne 0 ]; then
+    echo "-  ❌ 尝试进行安装的步骤失败 $pkg 的 $ver，请检查依赖状态."
+fi
+
+
+        done
+
+        echo "  - 其他依赖处理完成。"
+    else
+        echo "⚠️ 未找到 $REQ_JSON_FILE，跳过依赖安装。"
+    fi
+
+else
+    # 保持原处理方式：非 forge 的 UI (auto 等)
+    echo "当前配置仅支持Forge UI使用JSON安装，非Forge UI仍需使用原有TXT文件。"
 fi
 
 # ==================================================
