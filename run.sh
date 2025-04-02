@@ -195,21 +195,17 @@ cd "$TARGET_DIR" || { echo "❌ 无法切换到 WebUI 目标目录 $TARGET_DIR";
 # requirements 文件检查 (仅非 Forge UI)
 # ==================================================
 # 注意：Forge UI 默认通过 webui.sh 自动安装依赖，但当前配置已跳过其官方依赖处理步骤 (--skip-install 等参数已设置)。
-# 因此此处不需要检查requirements文件的存在性。实际依赖的安装和版本控制将在后续步骤 (【6.2】) 中明确处理。
+# 因此此处不需要检查 requirements 文件的存在性。实际依赖的安装和版本控制将在后续步骤 (【6.2】) 中明确处理。
 if [ "$UI" != "forge" ]; then
-    # 非 Forge UI 情况下的检查逻辑
-    echo "🔧 [5] (非 Forge UI) 检查 requirements 文件..."
+    echo "🔧 [5] (非 Forge UI) 检查 requirements_versions.txt 文件..."
+
     REQ_FILE_CHECK="requirements_versions.txt"
-    if [ ! -f "$REQ_FILE_CHECK" ]; then
-        REQ_FILE_CHECK="requirements.txt"
-    fi
     if [ -f "$REQ_FILE_CHECK" ]; then
         echo "  - 将使用 $REQ_FILE_CHECK 文件安装依赖。"
     else
-        echo "  - ⚠️ 未找到 $REQ_FILE_CHECK 或 requirements.txt。依赖安装可能不完整。"
+        echo "  - ⚠️ 未找到 $REQ_FILE_CHECK。依赖安装将被跳过，请确保该文件存在。"
     fi
 else
-    # Forge UI 已跳过官方安装步骤，手动安装将在后续步骤执行
     echo "⚙️ [5] (Forge UI) 已跳过官方依赖处理，手动安装将在后续步骤执行。"
 fi
 
@@ -268,7 +264,7 @@ ARGS="$COMMANDLINE_ARGS $ARGS"
 echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
 
 # ==================================================
-# 根据 UI 类型决定依赖处理方式（从JSON文件获取）
+# 根据 UI 类型决定依赖处理方式
 # ==================================================
 if [ "$UI" = "forge" ]; then
     echo "  - (Forge UI) 使用 run.sh 控制依赖安装流程"
@@ -282,116 +278,171 @@ if [ "$UI" = "forge" ]; then
         echo "  - ⏭️ 跳过 PyTorch 安装 (INSTALL_TORCH=false)"
     fi
 
-    # ========== 核心依赖安装（增强：跳过 xformers，不降级） ==========
-    REQ_JSON_FILE="requirements_versions.json"
-        #这个变量用于动态读取， 方便用户自己进行变量管理
-    export GITHUB_RAW_URL="https://raw.githubusercontent.com/amDosion/stable-diffusion-webui-forge-cuda128/main/requirements_versions.json"
+    # 🔧 安装其他核心依赖（不降级，仅安装未存在的）
+    REQ_FILE="requirements_versions.txt"
+    if [ -f "$REQ_FILE" ]; then
+        echo "  - 使用 $REQ_FILE 安装其他依赖（仅安装未存在模块，跳过 xformers）..."
+        sed -i 's/\r$//' "$REQ_FILE"
 
-    # 检查是否存在json 文件，如果不存在，则从github下载，或者也可以考虑是使用原有的，保证最基本的盘存在
-        if [ ! -f "$REQ_JSON_FILE" ]; then
-            echo "正在从github上下载:    $GITHUB_RAW_URL"
-            curl -o "$REQ_JSON_FILE" -L "$GITHUB_RAW_URL"
-            if [ ! -f "$REQ_JSON_FILE" ]; then
-                  echo "❌ 下载 $REQ_JSON_FILE 失败，将跳过该文件！"
-              #   exit 1  # 还是选择跳过 保证原流程可以进行
-            fi
-    fi
-    if [ -f "$REQ_JSON_FILE" ]; then
-        echo "  - 使用 $REQ_JSON_FILE 安装其他依赖（跳过已存在的 xformers，避免降级）..."
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            clean_line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            [[ -z "$clean_line" ]] && continue
 
-        # 安装 jq 用于解析 JSON 如果还是无法使用，请直接修改源文件
-        if ! command -v jq &>/dev/null; then
-            echo "❌ 缺少  jq (用于解析JSON)，跳过"
-        fi
+            pkg_name=$(echo "$clean_line" | cut -d '=' -f1)
 
-        # 读取 JSON 并逐条处理依赖
-       jq -r 'to_entries[] | "\(.key)==\(.value)"' "$REQ_JSON_FILE" | while IFS= read -r requirement; do
-            pkg=$(echo "$requirement" | cut -d '=' -f1)
-            ver=$(echo "$requirement" | sed 's/.*==//')
-
-            # 跳过 xformers
-            if [[ "$pkg" == *xformers* ]]; then
+            if [[ "$pkg_name" == *xformers* ]]; then
                 echo "    - ⏭️ 跳过 xformers（已从源码编译）"
                 continue
             fi
 
-            # 检查系统已安装版本
-            installed_ver=$(pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')
-            if [ -n "$installed_ver" ]; then
-               testResult =$(python -c "
-from packaging.version import parse
-import sys
-sys.exit(0) if parse('$installed_ver') > = parse('$ver') else sys.exit(1)
-")
-                if [ $? -eq 0 ]; then
-                    echo "   - ⏩ 已安装 $pkg==$installed_ver >= $ver，跳过"
-                    continue
-                fi
+            if pip show "$pkg_name" > /dev/null 2>&1; then
+                echo "    - ⏩ 已存在: $pkg_name，跳过"
+                continue
             fi
 
-            # 稳健的安装方式
-echo "正在从PyPI安装: $pkg"
-output=$(pip install --pre "$pkg==$ver" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1)
-pip_exit_status=$?
+            echo "    - 安装: $clean_line"
+            pip install --pre "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+                | tee -a "$LOG_FILE" \
+                | sed 's/^Successfully installed/      ✅ 成功安装/' \
+                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
 
-echo "$output" >> "$LOG_FILE"
-
-# 控制台美化输出
-if echo "$output" | grep -q "Successfully installed"; then
-    echo "      ✅ 成功安装 $pkg==$ver"
-elif echo "$output" | grep -q "Requirement already satisfied"; then
-    echo "      ⏩ 需求已满足 $pkg==$ver"
-else
-    echo "$output"
-fi
-
-if [ $pip_exit_status -ne 0 ]; then
-    echo "-  ❌ 尝试进行安装的步骤失败 $pkg 的 $ver，请检查依赖状态."
-fi
-
-
-        done
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                echo "❌ 安装失败: $clean_line"
+            fi
+        done < "$REQ_FILE"
 
         echo "  - 其他依赖处理完成。"
     else
-        echo "⚠️ 未找到 $REQ_JSON_FILE，跳过依赖安装。"
+        echo "⚠️ 未找到 $REQ_FILE，跳过依赖安装。"
     fi
 
 else
-    # 保持原处理方式：非 forge 的 UI (auto 等)
-    echo "当前配置仅支持Forge UI使用JSON安装，非Forge UI仍需使用原有TXT文件。"
+    echo "  - (非 Forge UI) 全量安装 requirements_versions.txt 中依赖..."
+    REQ_FILE="requirements_versions.txt"
+    if [ -f "$REQ_FILE" ]; then
+        sed -i 's/\r$//' "$REQ_FILE"
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            clean_line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            [[ -z "$clean_line" ]] && continue
+
+            echo "    - 安装: $clean_line"
+            pip install --pre "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+                | tee -a "$LOG_FILE" \
+                | sed 's/^Successfully installed/      ✅ 成功安装/' \
+                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
+
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                echo "❌ 安装失败: $clean_line"
+            fi
+        done < "$REQ_FILE"
+
+        echo "  - requirements_versions.txt 中的依赖处理完成。"
+    else
+        echo "⚠️ 未找到 $REQ_FILE，跳过依赖安装。"
+    fi
 fi
 
 # ==================================================
-# 🔧 [6.3] Ninja + xformers 编译安装（可选）
+# 🔧 [6.3] Ninja + xformers 编译安装（适配 CUDA 12.8）
 # ==================================================
 INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}"
+
+# 定义预期 PyTorch 版本
+TORCH_VER="2.8.0.dev20250326+cu128"
+VISION_VER="0.22.0.dev20250326+cu128"
+AUDIO_VER="2.6.0.dev20250326+cu128"
+TORCH_COMMAND="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/nightly/cu128"
 
 if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   echo "⚙️ [6.3] 正在编译并安装 xformers（适配 CUDA 12.8）"
 
-  # 安装 Ninja 加速编译
+  # 🔍 检查 PyTorch 是否已就绪
+  echo "  - 检查是否存在 PyTorch..."
+  torch_ok=false
+  vision_ok=false
+  audio_ok=false
+
+  torch_ver=$(pip show torch 2>/dev/null | awk '/^Version:/{print $2}')
+  vision_ver=$(pip show torchvision 2>/dev/null | awk '/^Version:/{print $2}')
+  audio_ver=$(pip show torchaudio 2>/dev/null | awk '/^Version:/{print $2}')
+
+  [[ "$torch_ver" == "$TORCH_VER" ]] && torch_ok=true
+  [[ "$vision_ver" == "$VISION_VER" ]] && vision_ok=true
+  [[ "$audio_ver" == "$AUDIO_VER" ]] && audio_ok=true
+
+  if [[ "$torch_ok" != "true" || "$vision_ok" != "true" || "$audio_ok" != "true" ]]; then
+    echo "  - 未检测到指定版本 PyTorch，执行安装..."
+    echo "    ➤ $TORCH_COMMAND"
+    $TORCH_COMMAND && echo "    ✅ PyTorch 安装成功" || { echo "    ❌ PyTorch 安装失败"; exit 1; }
+  else
+    echo "    ✅ 已存在所需版本 torch/vision/audio，跳过安装"
+  fi
+
+  # 🧱 安装 ninja
   echo "  - 安装 Ninja..."
   pip install ninja --no-cache-dir && echo "    ✅ Ninja 安装成功"
 
-  # 设置 CUDA 架构（默认 8.9 for Ada）
+  # 设置编译环境变量
   export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}"
+  export MAX_JOBS=$(nproc)
   echo "  - 使用 CUDA 架构: $TORCH_CUDA_ARCH_LIST"
+  echo "  - 并行编译线程数: $MAX_JOBS"
 
-  # 编译安装 xformers
-  echo "  - 正在从 GitHub 编译安装 xformers..."
-  pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers --no-cache-dir
+  # 🌱 编译 xformers（本地构建更稳）
+  XFORMERS_DIR="xformers-src"
+  XFORMERS_REPO="https://github.com/facebookresearch/xformers.git"
 
-  if [ $? -eq 0 ]; then
-    echo "    ✅ xformers 编译并安装成功"
+  if [ ! -d "$XFORMERS_DIR/.git" ]; then
+    echo "  - 克隆 xformers 仓库..."
+    git clone --recursive "$XFORMERS_REPO" "$XFORMERS_DIR"
   else
-    echo "    ❌ xformers 编译或安装失败！请检查 CUDA、PyTorch 环境或网络连接"
+    echo "  - 已存在 xformers 源码目录，跳过克隆。"
   fi
 
-  # 可选：清理环境变量
+  echo "  - 进入 $XFORMERS_DIR 并安装依赖..."
+  cd "$XFORMERS_DIR"
+  > requirements.txt  # 清空避免依赖污染
+  pip install -r requirements.txt --no-cache-dir
+
+  echo "  - 检查 xformers 是否已安装并匹配环境..."
+  XFORMERS_OK=false
+  if python -c "import xformers; import torch; assert torch.cuda.is_available()" &>/dev/null; then
+    echo "    ✅ 已安装 xformers 且 Torch + CUDA 可用，跳过编译"
+    XFORMERS_OK=true
+  fi
+
+  if [[ "$XFORMERS_OK" != "true" ]]; then
+    echo "  - 编译并安装 xformers（含 C++ 扩展）..."
+    python -c "import torch; print(torch.__version__)" || {
+      echo "❌ torch 不存在，无法构建 xformers，请检查依赖"; exit 1;
+    }
+
+    export XFORMERS_FORCE_CUDA=1
+    export XFORMERS_BUILD_CPP=1
+
+    pip install -e . --no-build-isolation
+
+    if [ $? -eq 0 ]; then
+      echo "    ✅ xformers 编译并安装成功（已启用 C++ 扩展）"
+    else
+      echo "    ❌ xformers 安装失败，请检查 CUDA/PyTorch 环境是否兼容"
+      exit 1
+    fi
+
+    unset XFORMERS_FORCE_CUDA
+    unset XFORMERS_BUILD_CPP
+  fi
+
+  echo "🔍 验证 PyTorch 和 xformers 环境..."
+  python -m torch.utils.collect_env | tee ../torch_env.txt
+  python -m xformers.info | tee ../xformers_info.txt || echo "⚠️ 无法获取 xformers.info，请检查安装是否完整"
+
+  cd ..
   unset TORCH_CUDA_ARCH_LIST
+  unset MAX_JOBS
 else
-  echo "⏭️ [6.3] 跳过 xformers 源码编译（INSTALL_XFORMERS=false）"
+  echo "⏭️ [6.3] 跳过 xformers 编译安装（INSTALL_XFORMERS=false）"
 fi
 
 # ==================================================
@@ -401,49 +452,67 @@ INSTALL_TENSORFLOW="${INSTALL_TENSORFLOW:-true}"
 if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
     echo "🧠 [6.4] 动态编译 TensorFlow (支持 CUDA 12.8)..."
 
-    # 检查是否已是 tf-nightly（版本中包含 'dev' 或 'nightly'）
     TF_INSTALLED_VERSION=$(python -c "import tensorflow as tf; print(tf.__version__)" 2>/dev/null || echo "not_installed")
     if [[ "$TF_INSTALLED_VERSION" == *"dev"* || "$TF_INSTALLED_VERSION" == *"nightly"* ]]; then
-        echo "    - ✅ 已安装 tf-nightly: $TF_INSTALLED_VERSION，跳过编译步骤。"
+        echo "    ✅ 已安装 tf-nightly: $TF_INSTALLED_VERSION，跳过编译步骤。"
     else
-        echo "    - ℹ️ 当前 TensorFlow 版本: $TF_INSTALLED_VERSION (将开始编译 tf-nightly)..."
+        echo "    - 当前 TensorFlow 版本: $TF_INSTALLED_VERSION，准备从源码构建..."
 
-        # 检查 CPU 是否支持 AVX2
-        echo "    - 检测 CPU 支持情况..."
-        CPU_VENDOR=$(grep -m 1 'vendor_id' /proc/cpuinfo | awk '{print $3}' || echo "未知")
+        echo "    - 检查 CPU 是否支持 AVX2..."
         AVX2_SUPPORTED=$(grep -q avx2 /proc/cpuinfo && echo "true" || echo "false")
-        echo "      - CPU Vendor: ${CPU_VENDOR}"
-        echo "      - AVX2 支持: ${AVX2_SUPPORTED}"
-
         if [[ "$AVX2_SUPPORTED" != "true" ]]; then
-            echo "      - ⚠️ 当前 CPU 不支持 AVX2，TensorFlow 编译可能无法成功。跳过编译。"
+            echo "    ⚠️ 当前 CPU 不支持 AVX2，跳过 TensorFlow 编译"
         else
-            # 清理可能存在的旧版本
-            echo "    - 清理旧版本 TensorFlow..."
+            # ✅ 安装 Bazelisk -> 替代原始 bazel，自动管理版本
+            echo "    - 安装 Bazelisk（用于自动管理 Bazel 版本）..."
+            curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 -o /usr/local/bin/bazelisk
+            chmod +x /usr/local/bin/bazelisk
+            ln -sf /usr/local/bin/bazelisk /usr/local/bin/bazel
+
+            # ✅ 清理现有安装
+            echo "    - 清理已安装 TensorFlow..."
             pip uninstall -y tensorflow* tf-nightly* &>/dev/null || true
 
-            # 开始 TensorFlow 编译
-            echo "    - 开始编译 tf-nightly..."
-            cd tensorflow  # 确保当前在 TensorFlow 源代码目录
+            TF_SRC_DIR="tensorflow"
+            if [ ! -d "$TF_SRC_DIR/.git" ]; then
+                echo "    - 克隆 TensorFlow 源码（默认 master 分支）..."
+                git clone https://github.com/tensorflow/tensorflow.git "$TF_SRC_DIR"
+            else
+                echo "    - 已存在 TensorFlow 源目录，跳过克隆"
+            fi
 
-            # 运行配置步骤（确保选择了 CUDA 支持）
-            ./configure
+            cd "$TF_SRC_DIR"
 
-            # 编译并生成 .whl 文件
-            bazel build --config=cuda //tensorflow/tools/pip_package:build_pip_package
+            # ✅ 设置 CUDA 编译变量
+            echo "    - 配置 ./configure（启用 CUDA）..."
+            export TF_NEED_CUDA=1
+            export TF_CUDA_VERSION=12.8
+            export TF_CUDNN_VERSION=8
+            export TF_CUDA_COMPUTE_CAPABILITIES="8.9"
+            export TF_CUDA_PATHS="/usr/local/cuda"
+            export CC_OPT_FLAGS="-march=native"
+            yes "" | ./configure
 
-            # 生成安装包
+            echo "    - 使用 Bazelisk 构建 TensorFlow pip 包..."
+            bazel build --config=opt --config=cuda //tensorflow/tools/pip_package:build_pip_package || {
+                echo "❌ Bazel 编译失败"; exit 1;
+            }
+
+            echo "    - 生成 .whl pip 安装包..."
             ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
-            # 安装生成的 .whl 文件
-            pip install /tmp/tensorflow_pkg/tensorflow-version-tags.whl
+            echo "    - 安装 .whl... "
+            pip install /tmp/tensorflow_pkg/tensorflow-*.whl || {
+                echo "❌ TensorFlow 安装失败"; exit 1;
+            }
 
-            echo "    - ✅ TensorFlow 编译并安装完成"
+            cd ..
+            echo "    ✅ TensorFlow 编译并安装成功"
         fi
     fi
 
-    # 验证 TensorFlow 是否支持 GPU
-    echo "    - 🧪 验证 TensorFlow 是否支持 GPU..."
+    # ✅ 验证 TensorFlow 是否支持 GPU
+    echo "    - 验证 TensorFlow 是否支持 GPU..."
     python -c "
 import tensorflow as tf
 gpus = tf.config.list_physical_devices('GPU')
@@ -452,11 +521,10 @@ if gpus:
     print(f'✅ 检测到 GPU 数量: {len(gpus)}')
 else:
     print('⚠️ 未检测到 GPU，将使用 CPU')
-" || echo "⚠️ TensorFlow 启动时检测异常，但未强制中断。"
-
+" || echo "⚠️ TensorFlow 启动时检测异常"
 else
-    echo "⏭️ [6.4] 跳过 TensorFlow 编译 (INSTALL_TENSORFLOW 未设置为 true)。"
-fi # 结束 TensorFlow 编译块
+    echo "⏭️ [6.4] 跳过 TensorFlow 编译 (INSTALL_TENSORFLOW 未设置为 true)"
+fi
 
 # ==================================================
 # 创建 WebUI 相关目录
