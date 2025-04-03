@@ -577,6 +577,10 @@ if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
       export LOCAL_CUDNN_PATH="/usr/local/cuda"
       export LOCAL_NCCL_PATH="/usr"
 
+      # 添加在 TF 编译前的 configure 步骤之前
+      export CC=$(which gcc)
+      export CXX=$(which g++)
+
       echo "    - 配置 TensorFlow (CUDA 支持, 非交互模式)..."
       ./configure 2>&1 | tee ../tf_configure_log.txt || {
         echo "❌ ./configure 配置失败，请查看 ../tf_configure_log.txt"; exit 1;
