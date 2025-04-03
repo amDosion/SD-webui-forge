@@ -22,7 +22,7 @@ echo "🔧 使用 PyTorch Nightly (Preview) builds 构建，可能存在不稳�
 echo "🔧 xformers 已在 Docker 构建时从源码编译 (目标架构: 8.9 for RTX 4090)。"
 
 # ==================================================
-# 系统环境自检
+# 🛠️  [0.5] 系统环境自检
 # ==================================================
 echo "🛠️  [0.5] 系统环境自检..."
 
@@ -39,6 +39,30 @@ if python3.11 -m pip --version &>/dev/null; then
   echo "✅ pip for Python 3.11 版本: $(python3.11 -m pip --version)"
 else
   echo "❌ 未找到 pip for Python 3.11！"
+  exit 1
+fi
+
+# 检查是否安装 g++
+if command -v g++ &>/dev/null; then
+  echo "✅ g++ 已安装"
+else
+  echo "❌ 未找到 g++，请手动安装"
+  exit 1
+fi
+
+# 检查是否安装 unzip
+if command -v unzip &>/dev/null; then
+  echo "✅ unzip 已安装"
+else
+  echo "❌ 未找到 unzip，安装失败"
+  exit 1
+fi
+
+# 检查是否安装 zip
+if command -v zip &>/dev/null; then
+  echo "✅ zip 已安装"
+else
+  echo "❌ 未找到 zip，安装失败"
   exit 1
 fi
 
@@ -244,6 +268,7 @@ source "$VENV_DIR/bin/activate"
 echo "  - 当前 Python: $(which python) (应指向 $VENV_DIR/bin/python)"
 echo "  - 当前 pip: $(which pip) (应指向 $VENV_DIR/bin/pip)"
 
+
 echo "📥 [6.1] 升级 venv 内的 pip 到最新版本..."
 pip install --upgrade pip | tee -a "$LOG_FILE" # 同时输出到控制台和日志
 
@@ -348,7 +373,6 @@ fi
 # ==================================================
 INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}"
 
-# 定义预期 PyTorch 版本
 TORCH_VER="2.8.0.dev20250326+cu128"
 VISION_VER="0.22.0.dev20250326+cu128"
 AUDIO_VER="2.6.0.dev20250326+cu128"
@@ -356,9 +380,9 @@ TORCH_COMMAND="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} 
 
 if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   echo "⚙️ [6.3] 正在编译并安装 xformers（适配 CUDA 12.8）"
+  echo "🐍 当前 Python 路径: $(which python)"
 
-  # 🔍 检查 PyTorch 是否已就绪
-  echo "  - 检查是否存在 PyTorch..."
+  # ✅ 检查 PyTorch 是否正确安装
   torch_ok=false
   vision_ok=false
   audio_ok=false
@@ -379,17 +403,14 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
     echo "    ✅ 已存在所需版本 torch/vision/audio，跳过安装"
   fi
 
-  # 🧱 安装 ninja
-  echo "  - 安装 Ninja..."
-  pip install ninja --no-cache-dir && echo "    ✅ Ninja 安装成功"
+  echo "📦 安装 Ninja 和 wheel..."
+  pip install --upgrade pip wheel ninja setuptools cmake --no-cache-dir && echo "    ✅ 依赖安装成功"
 
-  # 设置编译环境变量
   export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}"
   export MAX_JOBS=$(nproc)
   echo "  - 使用 CUDA 架构: $TORCH_CUDA_ARCH_LIST"
   echo "  - 并行编译线程数: $MAX_JOBS"
 
-  # 🌱 编译 xformers（本地构建更稳）
   XFORMERS_DIR="xformers-src"
   XFORMERS_REPO="https://github.com/facebookresearch/xformers.git"
 
@@ -397,46 +418,79 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
     echo "  - 克隆 xformers 仓库..."
     git clone --recursive "$XFORMERS_REPO" "$XFORMERS_DIR"
   else
-    echo "  - 已存在 xformers 源码目录，跳过克隆。"
+    echo "  - 已存在 xformers 源码目录，执行 git pull..."
+    cd "$XFORMERS_DIR"
+    git pull --ff-only || echo "⚠️ 仓库更新失败，保留本地副本"
+    cd ..
   fi
 
-  echo "  - 进入 $XFORMERS_DIR 并安装依赖..."
+  # ✅ 强制确保 Flash-Attention 子模块拉取成功
+  echo "  - 初始化 Flash-Attention 子模块..."
   cd "$XFORMERS_DIR"
-  > requirements.txt  # 清空避免依赖污染
-  pip install -r requirements.txt --no-cache-dir
+  git submodule update --init --recursive || {
+    echo "❌ 子模块拉取失败，请检查网络或 .gitmodules 设置"; exit 1;
+  }
 
-  echo "  - 检查 xformers 是否已安装并匹配环境..."
-  XFORMERS_OK=false
-  if python -c "import xformers; import torch; assert torch.cuda.is_available()" &>/dev/null; then
-    echo "    ✅ 已安装 xformers 且 Torch + CUDA 可用，跳过编译"
-    XFORMERS_OK=true
+  # ✅ 安装系统依赖（仅限 root）
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "🔧 以 root 用户执行，尝试安装系统级构建依赖..."
+    apt-get update && apt-get install -y build-essential g++ zip unzip
+  else
+    echo "⚠️ 当前非 root，跳过 apt 安装构建依赖。请确保已在 Dockerfile 中预装：build-essential g++ zip unzip"
   fi
 
-  if [[ "$XFORMERS_OK" != "true" ]]; then
-    echo "  - 编译并安装 xformers（含 C++ 扩展）..."
-    python -c "import torch; print(torch.__version__)" || {
-      echo "❌ torch 不存在，无法构建 xformers，请检查依赖"; exit 1;
-    }
+  echo "  - 安装 Python 构建依赖..."
+  > requirements.txt  # 清空旧依赖
+  pip install -r requirements.txt --no-cache-dir || echo "    ⚠️ 无 requirements.txt 或内容为空，跳过"
 
-    export XFORMERS_FORCE_CUDA=1
-    export XFORMERS_BUILD_CPP=1
+  echo "  - 开始构建 xformers（包含 C++ 扩展）..."
+  export XFORMERS_FORCE_CUDA=1
+  export XFORMERS_BUILD_CPP=1
 
-    pip install -e . --no-build-isolation
+  pip install -e . --no-build-isolation --verbose
+  build_result=$?
 
-    if [ $? -eq 0 ]; then
-      echo "    ✅ xformers 编译并安装成功（已启用 C++ 扩展）"
-    else
-      echo "    ❌ xformers 安装失败，请检查 CUDA/PyTorch 环境是否兼容"
-      exit 1
-    fi
+  unset XFORMERS_FORCE_CUDA
+  unset XFORMERS_BUILD_CPP
 
-    unset XFORMERS_FORCE_CUDA
-    unset XFORMERS_BUILD_CPP
+  if [ $build_result -ne 0 ]; then
+    echo "    ❌ xformers 安装失败，尝试诊断错误..."
+    echo "📌 检查是否缺失 wheel 模块或 setuptools/cmake 环境"
+    echo "    ➤ 当前 pip: $(pip --version)"
+    echo "    ➤ setuptools: $(python -c 'import setuptools; print(setuptools.__version__)')"
+    echo "    ➤ wheel: $(python -c 'import wheel; print(wheel.__version__)')"
+    echo "    ➤ cmake: $(cmake --version | head -n 1)"
+    exit 1
+  else
+    echo "    ✅ xformers 编译并安装成功（含 C++ 扩展）"
   fi
 
   echo "🔍 验证 PyTorch 和 xformers 环境..."
   python -m torch.utils.collect_env | tee ../torch_env.txt
-  python -m xformers.info | tee ../xformers_info.txt || echo "⚠️ 无法获取 xformers.info，请检查安装是否完整"
+
+  echo "🧩 诊断 xformers C++ 扩展状态..."
+  XFORMERS_INFO_FILE="../xformers_info.txt"
+  if python -m xformers.info | tee "$XFORMERS_INFO_FILE"; then
+    echo "    ✅ xformers.info 成功执行"
+  else
+    echo "    ⚠️ 无法运行 xformers.info，可能代表扩展未完整构建"
+  fi
+
+  if grep -q "unavailable" "$XFORMERS_INFO_FILE"; then
+    echo "⚠️ 以下 xformers 模块未启用："
+    grep "unavailable" "$XFORMERS_INFO_FILE" | sed 's/^/    - /'
+    echo "📌 可能原因如下："
+    echo "    • 缺少编译依赖（如 g++、zip、unzip）"
+    echo "    • 缺失 Python 构建模块（如 wheel/setuptools）"
+    echo "    • 编译路径未在虚拟环境中运行"
+    echo "    • CUDA/PyTorch 构建参数不一致或环境变量丢失"
+    echo "    • 子模块（如 Flash-Attention）未初始化"
+  else
+    echo "✅ 所有 xformers 扩展可用 ✅"
+  fi
+
+  echo "📁 xformers 源码目录: $(realpath "$XFORMERS_DIR")"
+  echo "🐍 当前 Python: $(which python)"
 
   cd ..
   unset TORCH_CUDA_ARCH_LIST
@@ -465,23 +519,25 @@ if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
         else
             # ✅ 安装 Bazelisk -> 替代原始 bazel，自动管理版本
             echo "    - 安装 Bazelisk（用于自动管理 Bazel 版本）..."
-            curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 -o /usr/local/bin/bazelisk
-            chmod +x /usr/local/bin/bazelisk
-            ln -sf /usr/local/bin/bazelisk /usr/local/bin/bazel
+            BAZELISK_PATH="${TARGET_DIR}/bazelisk"
+            curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 -o "$BAZELISK_PATH"
+            chmod +x "$BAZELISK_PATH"
+            ln -sf "$BAZELISK_PATH" /usr/local/bin/bazel
+            echo "    ✅ Bazelisk 安装到: $BAZELISK_PATH"
 
             # ✅ 清理现有安装
             echo "    - 清理已安装 TensorFlow..."
             pip uninstall -y tensorflow* tf-nightly* &>/dev/null || true
 
-            TF_SRC_DIR="tensorflow"
+            TF_SRC_DIR="${TARGET_DIR}/tensorflow-src"
             if [ ! -d "$TF_SRC_DIR/.git" ]; then
-                echo "    - 克隆 TensorFlow 源码（默认 master 分支）..."
+                echo "    - 克隆 TensorFlow 源码（默认 master 分支）到 $TF_SRC_DIR..."
                 git clone https://github.com/tensorflow/tensorflow.git "$TF_SRC_DIR"
             else
-                echo "    - 已存在 TensorFlow 源目录，跳过克隆"
+                echo "    - 已存在 TensorFlow 源目录: $TF_SRC_DIR，跳过克隆"
             fi
 
-            cd "$TF_SRC_DIR"
+            cd "$TF_SRC_DIR" || { echo "❌ 切换目录失败: $TF_SRC_DIR"; exit 1; }
 
             # ✅ 设置 CUDA 编译变量
             echo "    - 配置 ./configure（启用 CUDA）..."
@@ -491,6 +547,7 @@ if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
             export TF_CUDA_COMPUTE_CAPABILITIES="8.9"
             export TF_CUDA_PATHS="/usr/local/cuda"
             export CC_OPT_FLAGS="-march=native"
+            export TF_NEED_CLANG=0  # ✅ 禁用 Clang 编译器以避免交互失败
             yes "" | ./configure
 
             echo "    - 使用 Bazelisk 构建 TensorFlow pip 包..."
@@ -506,7 +563,7 @@ if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
                 echo "❌ TensorFlow 安装失败"; exit 1;
             }
 
-            cd ..
+            cd "$TARGET_DIR"
             echo "    ✅ TensorFlow 编译并安装成功"
         fi
     fi
