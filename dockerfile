@@ -1,36 +1,24 @@
-# Dockerfile
-# 使用包含 CUDA 12.8.1 和 cuDNN 的 NVIDIA 官方镜像作为基础
-# 目标是构建一个支持 PyTorch Nightly preview 版本的环境
+# ================================================================
+# 📦 0.1 基础镜像：CUDA 12.8.1 + cuDNN + Ubuntu 22.04
+# ================================================================
 FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
-# ===============================
-# 🚩 设置时区（上海）
-# ===============================
-# 设置环境变量 TZ 为上海时区
+# ================================================================
+# 🕒 1.1 设置系统时区（上海）
+# ================================================================
 ENV TZ=Asia/Shanghai
-# 通过创建软链接和写入 /etc/timezone 文件来应用时区设置
-RUN echo "🔧 设置时区为 ${TZ}..." && \
+RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
-    echo "✅ 时区设置成功：${TZ}"
+    echo "✅ [1.1] 时区设置完成"
 
-# ====================================
-# 🚩 系统依赖 + Python 3.11 环境 + 构建工具 + JQ工具
-# ====================================
-# 更新包列表，升级已安装包，并安装所需依赖
-# - 安装 Python 3.11 及其开发和虚拟环境工具
-# - 使用 get-pip.py 安装最新版 pip for Python 3.11
-# - 设置 python3 命令指向 python3.11
-# - 安装其他编译、图形、系统管理等基础依赖, 并且在最后添加  jq 的安装指令
-RUN echo "🔧 更新系统并安装基本依赖 (包括 Python 3.11 for Nightly builds, jq)..." && \
-    apt-get update && \
-    apt-get upgrade -y && \
-    # 安装 jq 命令
+# ================================================================
+# 🧱 2.1 安装 Python 3.11 + 系统依赖 + jq
+# ================================================================
+RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
+    apt-get update && apt-get upgrade -y && \
     apt-get install -y jq && \
-    # 安装 Python 3.11 相关包
     apt-get install -y --no-install-recommends \
-        python3.11 \
-        python3.11-venv \
-        python3.11-dev \
+        python3.11 python3.11-venv python3.11-dev \
         wget git git-lfs curl procps bc \
         libgl1 libgl1-mesa-glx libglvnd0 \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
@@ -40,118 +28,99 @@ RUN echo "🔧 更新系统并安装基本依赖 (包括 Python 3.11 for Nightly
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
         lsb-release software-properties-common && \
-    echo "✅ Python 3.11, jq 及系统依赖安装初步完成" && \
-    # 使用 get-pip.py 安装 pip for Python 3.11
-    echo "📦 安装 pip for Python 3.11..." && \
+    echo "✅ [2.1] 系统依赖安装完成" && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py && \
     rm get-pip.py && \
-    echo "✅ pip for Python 3.11 安装成功" && \
-    # 设置 Python 3.11 为默认的 python3
-    echo "🔧 设置 Python 3.11 为默认 python3 版本..." && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    echo "✅ Python 3.11 设置为默认 python3 版本" && \
-    # 清理 apt 缓存
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    echo "✅ 系统依赖安装和清理完成"
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    echo "✅ [2.1] Python 3.11 设置完成"
 
-# ================================
-# 🚩 安装 xformers 编译所需的 C++ 依赖项
-# ================================
-RUN echo "🔧 [6.3.1] 检查并安装编译 xformers 所需的 C++ 依赖项..." && \
+# ================================================================
+# 🧱 2.2 安装构建工具 pip/wheel/setuptools/cmake/ninja
+# ================================================================
+RUN echo "🔧 [2.2] 安装 Python 构建工具..." && \
+    python3.11 -m pip install --upgrade pip setuptools wheel cmake ninja --no-cache-dir && \
+    echo "✅ [2.2] 构建工具安装完成"
+
+# ================================================================
+# 🧱 2.3 安装 xformers 所需 C++ 系统构建依赖
+# ================================================================
+RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential \
-        ninja-build \
-        cmake \
-        g++ \
-        unzip \
-        zip && \
-    echo "✅ xformers 编译依赖项安装成功" && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential g++ cmake ninja-build zip unzip git curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    echo "✅ [2.3] xformers 构建依赖安装完成"
 
-# ====================================
-# 🚩 安装 PyTorch Nightly (含 torch-tensorrt) (匹配 CUDA 12.8)
-# ====================================
-# 安装特定日期的 PyTorch Nightly (Preview) 版本及相关组件
-# 这些版本针对 CUDA 12.8 编译 (--extra-index-url .../cu128)
-# 使用 --pre 标记安装预发布版本
-# 使用 --no-cache-dir 避免缓存，减小镜像体积
-RUN echo "🔧 安装 PyTorch Nightly Preview 和 Torch-TensorRT (CUDA 12.8)..." && \
+# ================================================================
+# 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
+# ================================================================
+RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && \
     python3.11 -m pip install --upgrade pip && \
     python3.11 -m pip install --pre \
-    torch==2.8.0.dev20250326+cu128 \
-    torchvision==0.22.0.dev20250326+cu128 \
-    torchaudio==2.6.0.dev20250326+cu128 \
-    torch-tensorrt==2.7.0.dev20250326+cu128 \
-    --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
-    --no-cache-dir && \
-    echo "✅ PyTorch Nightly Preview 和 Torch-TensorRT 安装成功"
+        torch==2.8.0.dev20250326+cu128 \
+        torchvision==0.22.0.dev20250326+cu128 \
+        torchaudio==2.6.0.dev20250326+cu128 \
+        torch-tensorrt==2.7.0.dev20250326+cu128 \
+        --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
+        --no-cache-dir && \
+    echo "✅ [3.1] PyTorch 安装完成"
 
-# ====================================
-# 🚩 安装其他 Python 依赖 (如 insightface)
-# ====================================
-# 使用 python3.11 -m pip 安装其他需要的 Python 库
-# 这些库将安装其与当前环境兼容的最新（稳定版优先）版本
-RUN echo "🔧 安装其他 Python 依赖 (如 insightface)..." && \
+# ================================================================
+# 🧱 3.2 安装 Python 推理依赖（如 insightface）
+# ================================================================
+RUN echo "🔧 [3.2] 安装额外 Python 包..." && \
     python3.11 -m pip install --no-cache-dir \
-        numpy \
-        scipy \
-        opencv-python \
-        scikit-learn \
-        Pillow \
-        insightface && \
-    echo "✅ 其他 Python 依赖安装完成"
+        numpy scipy opencv-python scikit-learn Pillow insightface && \
+    echo "✅ [3.2] 其他依赖安装完成"
 
-# ================================
-# 🚩 创建非 root 用户 webui
-# ================================
-# 创建一个名为 webui 的用户，并为其创建家目录
-RUN echo "🔧 创建用户 webui..." && \
+# ================================================================
+# 🧱 3.3 安装 Bazelisk（用于构建 TensorFlow）
+# ================================================================
+RUN echo "🔧 [3.3] 安装 Bazelisk（自动管理 Bazel）..." && \
+    mkdir -p /usr/local/bin && \
+    curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 \
+    -o /usr/local/bin/bazelisk && \
+    chmod +x /usr/local/bin/bazelisk && \
+    ln -sf /usr/local/bin/bazelisk /usr/local/bin/bazel && \
+    echo "✅ [3.3] Bazelisk 安装完成"
+
+# ================================================================
+# 👤 4.1 创建非 root 用户 webui
+# ================================================================
+RUN echo "🔧 [4.1] 创建非 root 用户 webui..." && \
     useradd -m webui && \
-    echo "✅ 用户 webui 创建成功"
+    echo "✅ [4.1] 用户 webui 创建完成"
 
-# ===================================
-# 🚩 设置工作目录，复制脚本并授权
-# ===================================
-# 设置 /app 为基础工作目录
+# ================================================================
+# 📂 5.1 设置工作目录并授权脚本
+# ================================================================
 WORKDIR /app
-# 将 run.sh 脚本复制到容器的 /app 目录下
 COPY run.sh /app/run.sh
-# 赋予 run.sh 执行权限，创建 webui 的工作目录并设置所有权
 RUN chmod +x /app/run.sh && \
     mkdir -p /app/webui && chown -R webui:webui /app/webui && \
-    echo "✅ 复制并授权 run.sh 成功，并设置 /app/webui 目录权限"
+    echo "✅ [5.1] 脚本授权完成"
 
-# ================================
-# 🚩 切换至非 root 用户 webui
-# ================================
-# 后续指令将以 webui 用户身份执行
+# ================================================================
+# 👤 5.2 切换至 webui 用户并设置工作目录
+# ================================================================
 USER webui
-# 设置 webui 用户的工作目录为 /app/webui
 WORKDIR /app/webui
-# 打印信息确认用户和目录切换成功
-RUN echo "✅ 已成功切换至用户：$(whoami)" && \
-    echo "✅ 当前工作目录为：$(pwd)"
+RUN echo "✅ [5.2] 当前用户: $(whoami)" && \
+    echo "✅ [5.2] 当前工作目录: $(pwd)"
 
-# ================================
-# 🚩 环境基础自检（Python与Pip by webui user）
-# ================================
-# 检查 python3 (应为 3.11), pip 和 venv 模块是否按预期工作
-RUN echo "🔎 Python 环境自检开始 (as webui user)..." && \
+# ================================================================
+# 🔎 6.1 环境基础自检
+# ================================================================
+RUN echo "🔎 [6.1] 开始环境基础自检..." && \
     python3 --version && \
-    # 检查关联的 pip 版本
     python3 -m pip --version && \
-    # 验证 venv 模块是否可用
     python3 -m venv --help > /dev/null && \
-    echo "✅ Python、pip 和 venv 已正确安装并通过检查 (应为 Python 3.11)" || \
-    # 如果任何检查失败，则输出错误并以非零状态退出，中止构建
-    (echo "⚠️ Python 环境完整性出现问题 (as webui user)，请排查！" && exit 1)
+    echo "✅ [6.1] Python、pip 和 venv 已正常工作" || \
+    (echo "❌ [6.1] Python 环境异常，请检查！" && exit 1)
 
-# ====================================
-# 🚩 设置容器启动入口
-# ====================================
-# 设置容器启动时执行的命令为 /app/run.sh
+# ================================================================
+# 🚀 7.1 设置容器启动入口
+# ================================================================
 ENTRYPOINT ["/app/run.sh"]
