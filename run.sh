@@ -560,7 +560,7 @@ if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
       export TF_CUDNN_VERSION=8
       export TF_CUDA_COMPUTE_CAPABILITIES="8.9"
       export TF_CUDA_PATHS="/usr/local/cuda"
-      export CC_OPT_FLAGS="-march=core-avx2"
+      export CC_OPT_FLAGS=""
       export TF_ENABLE_XLA=1
       export TF_NEED_CLANG=0
       export TF_CUDA_CLANG=0
