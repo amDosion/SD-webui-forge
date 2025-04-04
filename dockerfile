@@ -65,13 +65,17 @@ RUN echo "🔧 [2.4] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.4] TensorFlow 编译依赖安装完成"
 
 # ================================================================
-# 🧱 2.5 安装 GCC 12（支持 AVX-512FP16）
+# 🧱 2.5 安装 GCC 12（避免使用 add-apt-repository）
 # ================================================================
 RUN echo "🔧 [2.5] 安装 GCC 12..." && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        software-properties-common python3-apt && \
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+        wget gnupg ca-certificates && \
+    echo "    - 添加 ubuntu-toolchain-r/test PPA GPG 密钥和源..." && \
+    mkdir -p /etc/apt/keyrings && \
+    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 1E9377A2BA9EF27F && \
+    gpg --export --armor 1E9377A2BA9EF27F > /etc/apt/keyrings/ubuntu-toolchain-r.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/ubuntu-toolchain-r.gpg] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu jammy main" > /etc/apt/sources.list.d/ubuntu-toolchain-r.list && \
     apt-get update && \
     apt-get install -y gcc-12 g++-12 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
