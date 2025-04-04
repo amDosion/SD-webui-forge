@@ -65,6 +65,18 @@ RUN echo "🔧 [2.4] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.4] TensorFlow 编译依赖安装完成"
 
 # ================================================================
+# 🧱 2.5 安装 GCC 12 并设置为默认（支持 AVX-512FP16）
+# ================================================================
+RUN echo "🔧 [2.5] 安装 GCC 12..." && \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y gcc-12 g++-12 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100 && \
+    gcc --version && g++ --version && \
+    echo "✅ [2.5] GCC 12 安装并设置完成"
+
+# ================================================================
 # 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
 # ================================================================
 RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && \
