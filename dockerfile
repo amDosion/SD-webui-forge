@@ -81,6 +81,7 @@ RUN echo "🔧 [2.5] 安装 GCC 12..." && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100 && \
     gcc --version && g++ --version && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
     echo "✅ [2.5] GCC 12 安装并设置完成"
 
 # ================================================================
