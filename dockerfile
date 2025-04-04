@@ -54,15 +54,26 @@ RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     echo "✅ [2.3] xformers 构建依赖安装完成"
 
 # ================================================================
-# 🧱 2.4 安装 TensorFlow 源码编译所需系统依赖（不启用 clang，但需避免 configure 报错）
+# 🧱 2.4 安装最新版本的 GCC
 # ================================================================
-RUN echo "🔧 [2.4] 安装 TensorFlow 构建依赖..." && \
+RUN echo "🔧 [2.4] 安装最新版本的 GCC..." && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    gcc g++ && \
+    gcc --version && g++ --version && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    echo "✅ [2.4] 最新版本的 GCC 安装完成"
+
+# ================================================================
+# 🧱 2.5 安装 TensorFlow 源码编译所需系统依赖（不启用 clang，但需避免 configure 报错）
+# ================================================================
+RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     zlib1g-dev libcurl4-openssl-dev libssl-dev liblzma-dev \
     libtool autoconf automake python-is-python3 clang && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    echo "✅ [2.4] TensorFlow 编译依赖安装完成"
+    echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
 # ================================================================
 # 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
