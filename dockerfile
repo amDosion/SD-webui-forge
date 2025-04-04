@@ -65,9 +65,12 @@ RUN echo "🔧 [2.4] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.4] TensorFlow 编译依赖安装完成"
 
 # ================================================================
-# 🧱 2.5 安装 GCC 12 并设置为默认（支持 AVX-512FP16）
+# 🧱 2.5 安装 GCC 12（支持 AVX-512FP16）
 # ================================================================
 RUN echo "🔧 [2.5] 安装 GCC 12..." && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        software-properties-common python3-apt && \
     add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
     apt-get update && \
     apt-get install -y gcc-12 g++-12 && \
