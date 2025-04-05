@@ -56,7 +56,7 @@ RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
 # ✅ GCC 12.4.0 编译安装（不依赖 PPA，适配 GitHub Actions / CI）
 RUN echo "🔧 安装 GCC 12.4.0..." && \
     apt-get update && \
-    apt-get install -y build-essential wget libgmp-dev libmpfr-dev libmpc-dev flex bison && \
+    apt-get install -y build-essential wget libgmp-dev libmpfr-dev libmpc-dev flex bison file && \
     cd /tmp && \
     wget https://ftp.gnu.org/gnu/gcc/gcc-12.4.0/gcc-12.4.0.tar.xz && \
     tar -xf gcc-12.4.0.tar.xz && cd gcc-12.4.0 && \
