@@ -74,7 +74,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 🐳 Build & Push Docker Image (latest only)
+      - name: 🐳 Build & Push Docker Image (with logs)
         if: steps.compare.outputs.changed == 'true'
         run: |
           echo "📦 Building Docker image: $DOCKER_IMAGE:latest"
@@ -82,8 +82,8 @@ jobs:
             --platform linux/amd64 \
             --no-cache \
             -t $DOCKER_IMAGE:latest \
-            --push .
-
+            --push . 2>&1 | tee docker.log
+            
       - name: 🧹 Clean temp files
         run: |
           rm -rf forge-latest auto-latest
