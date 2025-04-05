@@ -86,7 +86,8 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     zlib1g-dev libcurl4-openssl-dev libssl-dev liblzma-dev \
-    libtool autoconf automake python-is-python3 clang && \
+    libtool autoconf automake python-is-python3 clang \
+    expect && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
