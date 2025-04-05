@@ -53,7 +53,7 @@ RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.3] xformers 构建依赖安装完成"
 
-# ✅ GCC 12.4.0 编译安装（不依赖 PPA，适配 GitHub Actions / CI）
+# ✅ GCC 12.4.0 编译安装（快速构建 + 精简配置）
 RUN echo "🔧 安装 GCC 12.4.0..." && \
     apt-get update && \
     apt-get install -y build-essential wget libgmp-dev libmpfr-dev libmpc-dev flex bison file && \
@@ -62,10 +62,20 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     tar -xf gcc-12.4.0.tar.xz && cd gcc-12.4.0 && \
     ./contrib/download_prerequisites && \
     mkdir build && cd build && \
-    ../configure --disable-multilib --enable-languages=c,c++ --prefix=/opt/gcc-12.4 && \
-    make -j"$(nproc)" && make install && \
+    ../configure \
+        --disable-bootstrap \
+        --disable-libstdcxx-pch \
+        --disable-nls \
+        --disable-multilib \
+        --disable-werror \
+        --enable-languages=c,c++ \
+        --without-included-gettext \
+        --prefix=/opt/gcc-12.4 && \
+    make -j"$(nproc)" && \
+    make install && \
     ln -sf /opt/gcc-12.4/bin/gcc /usr/local/bin/gcc && \
     ln -sf /opt/gcc-12.4/bin/g++ /usr/local/bin/g++ && \
+    cd / && rm -rf /tmp/gcc-12.4.0* && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ GCC 12.4 安装完成"
 
