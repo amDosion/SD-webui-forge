@@ -33,7 +33,7 @@ RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
     python3.11 get-pip.py && \
     rm get-pip.py && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.1] Python 3.11 设置完成"
 
 # ================================================================
@@ -50,7 +50,7 @@ RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential g++ cmake ninja-build zip unzip git curl && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.3] xformers 构建依赖安装完成"
 
 # ✅ GCC 12.4.0 编译安装（不依赖 PPA，适配 GitHub Actions / CI）
@@ -66,6 +66,7 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     make -j"$(nproc)" && make install && \
     ln -sf /opt/gcc-12.4/bin/gcc /usr/local/bin/gcc && \
     ln -sf /opt/gcc-12.4/bin/g++ /usr/local/bin/g++ && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ GCC 12.4 安装完成"
 
 # ================================================================
@@ -76,7 +77,7 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     zlib1g-dev libcurl4-openssl-dev libssl-dev liblzma-dev \
     libtool autoconf automake python-is-python3 clang && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
 # ================================================================
@@ -91,6 +92,7 @@ RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && 
         torch-tensorrt==2.7.0.dev20250326+cu128 \
         --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
         --no-cache-dir && \
+    rm -rf /root/.cache /tmp/* ~/.cache && \
     echo "✅ [3.1] PyTorch 安装完成"
 
 # ================================================================
@@ -99,6 +101,7 @@ RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && 
 RUN echo "🔧 [3.2] 安装额外 Python 包..." && \
     python3.11 -m pip install --no-cache-dir \
         numpy scipy opencv-python scikit-learn Pillow insightface && \
+    rm -rf /root/.cache /tmp/* ~/.cache && \
     echo "✅ [3.2] 其他依赖安装完成"
 
 # ================================================================
@@ -110,6 +113,7 @@ RUN echo "🔧 [3.3] 安装 Bazelisk（自动管理 Bazel）..." && \
     -o /usr/local/bin/bazelisk && \
     chmod +x /usr/local/bin/bazelisk && \
     ln -sf /usr/local/bin/bazelisk /usr/local/bin/bazel && \
+    rm -rf /root/.cache /tmp/* ~/.cache && \
     echo "✅ [3.3] Bazelisk 安装完成"
 
 # ================================================================
