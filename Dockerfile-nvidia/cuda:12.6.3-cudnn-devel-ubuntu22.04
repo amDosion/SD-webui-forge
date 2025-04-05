@@ -1,7 +1,7 @@
 # Dockerfile
 # 使用包含 CUDA 12.8.1 和 cuDNN 的 NVIDIA 官方镜像作为基础
 # 目标是构建一个支持 PyTorch Nightly preview 版本的环境
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
 
 # ===============================
 # 🚩 设置时区（上海）
