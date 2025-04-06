@@ -92,6 +92,16 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
 # ================================================================
+# 🧱 2.6 安装 NCCL 库（CUDA 12.8 对应 NCCL）
+# ================================================================
+RUN echo "🔧 [2.6] 安装 NCCL (libnccl2 + libnccl-dev)..." && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libnccl2 libnccl-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
+    echo "✅ [2.6] NCCL 安装完成"
+
+# ================================================================
 # 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
 # ================================================================
 RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && \
