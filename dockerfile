@@ -80,28 +80,56 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     echo "✅ GCC 12.4 安装完成"
 
 # ================================================================
-# 🔧 安装 LLVM/Clang 20 所有组件（不使用 add-apt-repository）
+# 🧠 安装 LLVM/Clang 20（包括 clangd、lld、libc++ 等核心组件）
 # ================================================================
-RUN echo "🔧 添加 LLVM 官方 apt 仓库并自动安装 LLVM/Clang 20..." && \
-    apt-get update && \
-    apt-get install -y wget curl gnupg lsb-release software-properties-common && \
-    curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" \
-        > /etc/apt/sources.list.d/llvm-toolchain-jammy-20.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        clang-20 clangd-20 clang-format-20 clang-tidy-20 \
-        libclang-common-20-dev libclang-20-dev libclang1-20 \
-        lld-20 llvm-20 llvm-20-dev llvm-20-runtime \
-        llvm-20-tools libomp-20-dev libc++-20-dev libc++abi-20-dev && \
-    ln -sf /usr/bin/clang-20 /usr/bin/clang && \
+
+# 设置非交互式安装，避免构建卡住
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 🧱 安装基础依赖（wget、curl、gnupg 等）
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget curl gnupg lsb-release && \
+    echo "✅ 基础工具安装完成"
+
+# 🔐 添加 LLVM 官方 GPG key（使用 keyring 方式，替代已废弃的 apt-key）
+RUN mkdir -p /usr/share/keyrings && \
+    curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | \
+    gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
+    echo "✅ LLVM GPG Key 安装完成"
+
+# 📦 添加 LLVM apt 源（适配 Ubuntu 22.04 jammy）
+RUN echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" \
+    > /etc/apt/sources.list.d/llvm-toolchain-jammy-20.list && \
+    echo "✅ 已添加 LLVM apt 软件源"
+
+# 🔄 刷新软件包索引
+RUN apt-get update && echo "✅ APT 软件源更新完成"
+
+# 🧱 安装 Clang 20 / LLD / libc++ / OpenMP 等组件
+RUN apt-get install -y --no-install-recommends \
+    clang-20 clangd-20 clang-format-20 clang-tidy-20 \
+    libclang-common-20-dev libclang-20-dev libclang1-20 \
+    lld-20 llvm-20 llvm-20-dev llvm-20-runtime \
+    llvm-20-tools libomp-20-dev \
+    libc++-20-dev libc++abi-20-dev && \
+    echo "✅ LLVM/Clang 20 及依赖组件安装完成"
+
+# 🔗 创建通用命令别名（如 clang -> clang-20）
+RUN ln -sf /usr/bin/clang-20 /usr/bin/clang && \
     ln -sf /usr/bin/clang++-20 /usr/bin/clang++ && \
     ln -sf /usr/bin/llvm-config-20 /usr/bin/llvm-config && \
-    echo "✅ LLVM 安装完成，版本信息如下：" && \
-    echo "🔍 clang version: $(clang --version | head -n1)" && \
-    echo "🔍 lld version: $(ld.lld-20 --version)" && \
-    echo "🔍 llvm-config version: $(llvm-config --version)" && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
+    echo "✅ 创建 clang/clang++/llvm-config 别名完成"
+
+# 🔍 输出版本信息确认
+RUN echo "✅ LLVM 工具链版本信息如下：" && \
+    echo "🔹 clang:        $(clang --version | head -n1)" && \
+    echo "🔹 clang++:      $(clang++ --version | head -n1)" && \
+    echo "🔹 ld.lld:       $(ld.lld-20 --version)" && \
+    echo "🔹 llvm-config:  $(llvm-config --version)"
+
+# 🧹 清理 APT 缓存，减小镜像体积
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* && \
+    echo "🧹 LLVM 安装完成，APT 缓存已清理"
 
 # ================================================================
 # 🧱 2.5 安装 TensorFlow 源码编译所需系统依赖（不启用 clang，但需避免 configure 报错）
