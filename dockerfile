@@ -81,7 +81,7 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
 
 # 添加 LLVM 官方仓库，安装 LLVM/Clang 20
 RUN apt-get update && \
-    apt-get install -y wget gnupg lsb-release software-properties-common && \
+    apt-get install -y wget gnupg lsb-release software-properties-common python3-apt && \
     wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && \
     ./llvm.sh 20 all && \
     ln -sf /usr/bin/clang-20 /usr/bin/clang && \
