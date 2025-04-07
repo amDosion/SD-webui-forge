@@ -79,19 +79,22 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ GCC 12.4 安装完成"
 
-RUN echo "🔧 安装 LLVM/Clang 20 核心组件..." && \
+# ================================================================
+# 🔧 安装 LLVM/Clang 20 全部组件（通过 apt.llvm.org 官方脚本）
+# ================================================================
+RUN echo "🔧 添加 LLVM 官方 apt 仓库并自动安装所有组件..." && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-        clang-20 clangd-20 clang-format-20 clang-tidy-20 \
-        libclang-common-20-dev libclang-20-dev libclang1-20 \
-        lld-20 lldb-20 \
-        llvm-20 llvm-20-dev llvm-20-runtime \
-        python3-clang-20 \
-        libc++-20-dev libc++abi-20-dev libomp-20-dev && \
-    echo "✅ 安装完成，版本信息如下：" && \
-    echo "🔍 clang version: $(clang-20 --version | head -n1)" && \
+    apt-get install -y wget gnupg lsb-release software-properties-common && \
+    wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && \
+    ./llvm.sh 20 all && \
+    ln -sf /usr/bin/clang-20 /usr/bin/clang && \
+    ln -sf /usr/bin/clang++-20 /usr/bin/clang++ && \
+    ln -sf /usr/bin/llvm-config-20 /usr/bin/llvm-config && \
+    echo "✅ LLVM 安装完成，版本信息如下：" && \
+    echo "🔍 clang version: $(clang --version | head -n1)" && \
     echo "🔍 lld version: $(ld.lld-20 --version)" && \
-    echo "🔍 llvm-config version: $(llvm-config-20 --version)" && \
+    echo "🔍 llvm-config version: $(llvm-config --version)" && \
+    rm -f llvm.sh && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # ================================================================
