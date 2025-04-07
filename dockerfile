@@ -80,13 +80,20 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     echo "✅ GCC 12.4 安装完成"
 
 # ================================================================
-# 🔧 安装 LLVM/Clang 20 全部组件（通过 apt.llvm.org 官方脚本）
+# 🔧 安装 LLVM/Clang 20 所有组件（不使用 add-apt-repository）
 # ================================================================
-RUN echo "🔧 添加 LLVM 官方 apt 仓库并自动安装所有组件..." && \
+RUN echo "🔧 添加 LLVM 官方 apt 仓库并自动安装 LLVM/Clang 20..." && \
     apt-get update && \
-    apt-get install -y wget gnupg lsb-release software-properties-common && \
-    wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && \
-    ./llvm.sh 20 all && \
+    apt-get install -y wget curl gnupg lsb-release software-properties-common && \
+    curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" \
+        > /etc/apt/sources.list.d/llvm-toolchain-jammy-20.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        clang-20 clangd-20 clang-format-20 clang-tidy-20 \
+        libclang-common-20-dev libclang-20-dev libclang1-20 \
+        lld-20 llvm-20 llvm-20-dev llvm-20-runtime \
+        llvm-20-tools libomp-20-dev libc++-20-dev libc++abi-20-dev && \
     ln -sf /usr/bin/clang-20 /usr/bin/clang && \
     ln -sf /usr/bin/clang++-20 /usr/bin/clang++ && \
     ln -sf /usr/bin/llvm-config-20 /usr/bin/llvm-config && \
@@ -94,7 +101,6 @@ RUN echo "🔧 添加 LLVM 官方 apt 仓库并自动安装所有组件..." && \
     echo "🔍 clang version: $(clang --version | head -n1)" && \
     echo "🔍 lld version: $(ld.lld-20 --version)" && \
     echo "🔍 llvm-config version: $(llvm-config --version)" && \
-    rm -f llvm.sh && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
 # ================================================================
