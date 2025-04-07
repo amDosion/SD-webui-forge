@@ -144,14 +144,23 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
 # ================================================================
-# 🧱 2.6 安装 NCCL 库（CUDA 12.8 对应 NCCL）
+# 🧱 2.6 安装 NCCL 库（CUDA 12.8 对应 NCCL）【已被 run.sh 替代】
 # ================================================================
-RUN echo "🔧 [2.6] 安装 NCCL (libnccl2 + libnccl-dev)..." && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libnccl2 libnccl-dev && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
-    echo "✅ [2.6] NCCL 安装完成"
+# RUN echo "🔧 [2.6] 安装 NCCL (libnccl2 + libnccl-dev)..." && \
+#     apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#         libnccl2 libnccl-dev && \
+#     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
+#     echo "✅ [2.6] NCCL 安装完成"
+
+# 🧪 输出已安装的 NCCL 相关信息（版本 + 路径）
+RUN echo "🔍 [2.6] 检查 NCCL 系统安装状态..." && \
+    dpkg -l | grep nccl || echo "⚠️ 未通过 dpkg 查询到 NCCL 安装信息" && \
+    echo "📦 libnccl2 路径:" && \
+    find /usr -name "libnccl.so*" 2>/dev/null || echo "❌ 未找到 libnccl.so" && \
+    echo "📦 libnccl-dev (nccl.h) 路径:" && \
+    find /usr -name "nccl.h" 2>/dev/null || echo "❌ 未找到 nccl.h" && \
+    echo "✅ [2.6] NCCL 系统检查完成（不再自动安装）"
 
 # ================================================================
 # 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
