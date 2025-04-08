@@ -7,12 +7,16 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 # 🕒 1.1 设置系统时区（上海）
 # ================================================================
 ENV TZ=Asia/Shanghai
+
+# 设置非交互式安装，避免构建卡住
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     echo "✅ [1.1] 时区设置完成"
 
 # ================================================================
-# 🧱 2.1 安装 Python 3.11 + 系统依赖 + jq
+# 🧱 2.1 安装基础依赖（wget、curl、gnupg 等 + 安装 Python 3.11 + 系统依赖 + jq
 # ================================================================
 RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
     apt-get update && apt-get upgrade -y && \
@@ -22,7 +26,7 @@ RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
         wget git git-lfs curl procps bc \
         libgl1 libgl1-mesa-glx libglvnd0 \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
-        xvfb build-essential cmake \
+        xvfb build-essential \
         libgoogle-perftools-dev \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
@@ -48,15 +52,15 @@ RUN echo "🔧 [2.2] 安装 Python 构建工具..." && \
 # ================================================================
 RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    build-essential g++ cmake ninja-build zip unzip git curl && \
+    apt-get install -y --no-install-recommends \
+    g++ ninja-build zip unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.3] xformers 构建依赖安装完成"
 
 # ✅ GCC 12.4.0 编译安装（快速构建 + 精简配置）
 RUN echo "🔧 安装 GCC 12.4.0..." && \
     apt-get update && \
-    apt-get install -y build-essential wget libgmp-dev libmpfr-dev libmpc-dev flex bison file && \
+    apt-get install -y libgmp-dev libmpfr-dev libmpc-dev flex bison file && \
     cd /tmp && \
     wget https://ftp.gnu.org/gnu/gcc/gcc-12.4.0/gcc-12.4.0.tar.xz && \
     tar -xf gcc-12.4.0.tar.xz && cd gcc-12.4.0 && \
@@ -82,14 +86,6 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
 # ================================================================
 # 🧠 安装 LLVM/Clang 20（包括 clangd、lld、libc++ 等核心组件）
 # ================================================================
-
-# 设置非交互式安装，避免构建卡住
-ENV DEBIAN_FRONTEND=noninteractive
-
-# 🧱 安装基础依赖（wget、curl、gnupg 等）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget curl gnupg lsb-release && \
-    echo "✅ 基础工具安装完成"
 
 # 🔐 添加 LLVM 官方 GPG key（使用 keyring 方式，替代已废弃的 apt-key）
 RUN mkdir -p /usr/share/keyrings && \
@@ -138,7 +134,7 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     zlib1g-dev libcurl4-openssl-dev libssl-dev liblzma-dev \
-    libtool autoconf automake python-is-python3 clang \
+    libtool autoconf automake python-is-python3 \
     expect && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
@@ -153,14 +149,31 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
 #     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
 #     echo "✅ [2.6] NCCL 安装完成"
 
-# 🧪 输出已安装的 NCCL 相关信息（版本 + 路径）
-RUN echo "🔍 [2.6] 检查 NCCL 系统安装状态..." && \
+# 🧪 输出已安装的 CUDA / cuDNN / NCCL 相关信息（版本 + 路径）
+RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
+    echo "====================== CUDA ======================" && \
+    if command -v nvcc >/dev/null 2>&1; then \
+        nvcc --version; \
+    else \
+        echo "❌ nvcc 不存在"; \
+    fi && \
+    echo "📁 CUDA 路径检测：" && \
+    ls -l /usr/local/cuda* || echo "❌ 未找到 /usr/local/cuda*" && \
+    echo "🔍 libcudart 路径：" && \
+    find /usr -name "libcudart*" 2>/dev/null || echo "❌ 未找到 libcudart*" && \
+    echo "===================== cuDNN ======================" && \
+    echo "🔍 cudnn.h 路径：" && \
+    find /usr -name "cudnn.h" 2>/dev/null || echo "❌ 未找到 cudnn.h" && \
+    echo "🔍 libcudnn.so 路径：" && \
+    find /usr -name "libcudnn.so*" 2>/dev/null || echo "❌ 未找到 libcudnn.so*" && \
+    echo "===================== NCCL =======================" && \
     dpkg -l | grep nccl || echo "⚠️ 未通过 dpkg 查询到 NCCL 安装信息" && \
-    echo "📦 libnccl2 路径:" && \
-    find /usr -name "libnccl.so*" 2>/dev/null || echo "❌ 未找到 libnccl.so" && \
-    echo "📦 libnccl-dev (nccl.h) 路径:" && \
+    echo "🔍 libnccl 路径：" && \
+    find /usr -name "libnccl.so*" 2>/dev/null || echo "❌ 未找到 libnccl.so*" && \
+    echo "🔍 nccl.h 路径：" && \
     find /usr -name "nccl.h" 2>/dev/null || echo "❌ 未找到 nccl.h" && \
-    echo "✅ [2.6] NCCL 系统检查完成（不再自动安装）"
+    echo "==================================================" && \
+    echo "✅ [2.6] CUDA / cuDNN / NCCL 检查完成"
 
 # ================================================================
 # 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
