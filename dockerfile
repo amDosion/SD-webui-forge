@@ -204,7 +204,7 @@ RUN echo "🔧 [3.2] 安装额外 Python 包..." && \
 # ================================================================
 RUN echo "🔧 [3.3] 安装 Bazelisk（自动管理 Bazel）..." && \
     mkdir -p /usr/local/bin && \
-    curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 \
+    curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64 \
     -o /usr/local/bin/bazelisk && \
     chmod +x /usr/local/bin/bazelisk && \
     ln -sf /usr/local/bin/bazelisk /usr/local/bin/bazel && \
