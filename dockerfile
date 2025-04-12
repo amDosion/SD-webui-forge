@@ -18,7 +18,7 @@ RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
 # ================================================================
 # 🧱 2.1 安装基础依赖（wget、curl、gnupg 等 + 安装 Python 3.11 + 系统依赖 + jq
 # ================================================================
-RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
+RUN echo "🔧 [2.1] 安装 Python 3.11 及系统依赖..." && \
     apt-get update && apt-get upgrade -y && \
     apt-get install -y jq && \
     apt-get install -y --no-install-recommends \
@@ -31,9 +31,11 @@ RUN echo "🔧 [2.1] 安装 Python 3.11 及基础系统依赖..." && \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
-        lsb-release software-properties-common && \
+        lsb-release software-properties-common \
+        libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+        libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev && \
     echo "✅ [2.1] 系统依赖安装完成" && \
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py && \
     rm get-pip.py && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
@@ -64,7 +66,6 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     cd /tmp && \
     wget https://ftp.gnu.org/gnu/gcc/gcc-12.4.0/gcc-12.4.0.tar.xz && \
     tar -xf gcc-12.4.0.tar.xz && cd gcc-12.4.0 && \
-    ./contrib/download_prerequisites && \
     mkdir build && cd build && \
     ../configure \
         --disable-bootstrap \
@@ -74,7 +75,10 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
         --disable-werror \
         --enable-languages=c,c++ \
         --without-included-gettext \
-        --prefix=/opt/gcc-12.4 && \
+        --prefix=/opt/gcc-12.4 \
+        --with-gmp=/usr \
+        --with-mpfr=/usr \
+        --with-mpc=/usr && \
     make -j"$(nproc)" && \
     make install && \
     ln -sf /opt/gcc-12.4/bin/gcc /usr/local/bin/gcc && \
