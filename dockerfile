@@ -7,8 +7,6 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 # 🕒 1.1 设置系统时区（上海）
 # ================================================================
 ENV TZ=Asia/Shanghai
-
-# 设置非交互式安装，避免构建卡住
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
@@ -16,7 +14,7 @@ RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
     echo "✅ [1.1] 时区设置完成"
 
 # ================================================================
-# 🧱 2.1 安装基础依赖（wget、curl、gnupg 等 + 安装 Python 3.11 + 系统依赖 + jq
+# 🧱 2.1 安装 Python 3.11 + 基础系统依赖
 # ================================================================
 RUN echo "🔧 [2.1] 安装 Python 3.11 及系统依赖..." && \
     apt-get update && apt-get upgrade -y && \
@@ -59,7 +57,9 @@ RUN echo "🔧 [2.3] 安装 xformers C++ 构建依赖..." && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
     echo "✅ [2.3] xformers 构建依赖安装完成"
 
-# ✅ GCC 12.4.0 编译安装（快速构建 + 精简配置）
+# ================================================================
+# 🧱 2.4 编译安装 GCC 12.4.0（适配 TensorFlow 构建）
+# ================================================================
 RUN echo "🔧 安装 GCC 12.4.0..." && \
     apt-get update && \
     apt-get install -y libgmp-dev libmpfr-dev libmpc-dev flex bison file && \
@@ -88,24 +88,19 @@ RUN echo "🔧 安装 GCC 12.4.0..." && \
     echo "✅ GCC 12.4 安装完成"
 
 # ================================================================
-# 🧠 安装 LLVM/Clang 20（包括 clangd、lld、libc++ 等核心组件）
+# 🧠 安装 LLVM/Clang 20 + 设置 apt 源 + gpg key
 # ================================================================
-
-# 🔐 添加 LLVM 官方 GPG key（使用 keyring 方式，替代已废弃的 apt-key）
 RUN mkdir -p /usr/share/keyrings && \
     curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | \
     gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
     echo "✅ LLVM GPG Key 安装完成"
 
-# 📦 添加 LLVM apt 源（适配 Ubuntu 22.04 jammy）
 RUN echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" \
     > /etc/apt/sources.list.d/llvm-toolchain-jammy-20.list && \
     echo "✅ 已添加 LLVM apt 软件源"
 
-# 🔄 刷新软件包索引
 RUN apt-get update && echo "✅ APT 软件源更新完成"
 
-# 🧱 安装 Clang 20 / LLD / libc++ / OpenMP 等组件
 RUN apt-get install -y --no-install-recommends \
     clang-20 clangd-20 clang-format-20 clang-tidy-20 \
     libclang-common-20-dev libclang-20-dev libclang1-20 \
@@ -114,25 +109,22 @@ RUN apt-get install -y --no-install-recommends \
     libc++-20-dev libc++abi-20-dev && \
     echo "✅ LLVM/Clang 20 及依赖组件安装完成"
 
-# 🔗 创建通用命令别名（如 clang -> clang-20）
 RUN ln -sf /usr/bin/clang-20 /usr/bin/clang && \
     ln -sf /usr/bin/clang++-20 /usr/bin/clang++ && \
     ln -sf /usr/bin/llvm-config-20 /usr/bin/llvm-config && \
     echo "✅ 创建 clang/clang++/llvm-config 别名完成"
 
-# 🔍 输出版本信息确认
 RUN echo "✅ LLVM 工具链版本信息如下：" && \
     echo "🔹 clang:        $(clang --version | head -n1)" && \
     echo "🔹 clang++:      $(clang++ --version | head -n1)" && \
     echo "🔹 ld.lld:       $(ld.lld-20 --version)" && \
     echo "🔹 llvm-config:  $(llvm-config --version)"
 
-# 🧹 清理 APT 缓存，减小镜像体积
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* && \
     echo "🧹 LLVM 安装完成，APT 缓存已清理"
 
 # ================================================================
-# 🧱 2.5 安装 TensorFlow 源码编译所需系统依赖（不启用 clang，但需避免 configure 报错）
+# 🧱 2.5 安装 TensorFlow 源码构建依赖
 # ================================================================
 RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     apt-get update && \
@@ -149,28 +141,20 @@ RUN echo "🔧 [2.6] 安装 NCCL 2.25.1 (dev + lib)..." && \
     libnccl2=2.25.1-1+cuda12.8 \
     libnccl-dev=2.25.1-1+cuda12.8 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
-    echo "✅ [2.25] NCCL 安装完成"
+    echo "✅ [2.6] NCCL 安装完成"
 
-# 修复 CUDA 12.8 的潜在递归软链接问题
 RUN if [ -L /usr/local/cuda-12.8/lib/lib64 ]; then \
       echo '⚠️ 递归软链接检测: 修复 /usr/local/cuda-12.8/lib'; \
       rm -rf /usr/local/cuda-12.8/lib && \
       ln -s /usr/local/cuda-12.8/lib64 /usr/local/cuda-12.8/lib; \
     fi
 
-# 确保 cudart 静态库和开发头文件存在
 RUN apt-get update && apt-get install -y --reinstall cuda-cudart-dev-12-8 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ================================================================
-# 🧪 输出已安装的 CUDA / cuDNN / NCCL 相关信息（版本 + 路径）
 RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
     echo "====================== CUDA ======================" && \
-    if command -v nvcc >/dev/null 2>&1; then \
-        nvcc --version; \
-    else \
-        echo "❌ nvcc 不存在"; \
-    fi && \
+    nvcc --version || echo "❌ nvcc 不存在" && \
     echo "📁 CUDA 路径检测：" && \
     ls -l /usr/local/cuda* || echo "❌ 未找到 /usr/local/cuda*" && \
     echo "🔍 libcudart 路径：" && \
@@ -190,9 +174,9 @@ RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
     echo "✅ [2.6] CUDA / cuDNN / NCCL 检查完成"
 
 # ================================================================
-# 🧱 3.1 安装 PyTorch Nightly (with CUDA 12.8)
+# 🧱 3.1 安装 PyTorch Nightly + Torch-TensorRT
 # ================================================================
-RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && \
+RUN echo "🔧 [3.1] 安装 PyTorch Nightly..." && \
     python3.11 -m pip install --upgrade pip && \
     python3.11 -m pip install --pre \
         torch==2.8.0.dev20250326+cu128 \
@@ -205,7 +189,7 @@ RUN echo "🔧 [3.1] 安装 PyTorch Nightly + Torch-TensorRT (CUDA 12.8)..." && 
     echo "✅ [3.1] PyTorch 安装完成"
 
 # ================================================================
-# 🧱 3.2 安装 Python 推理依赖（如 insightface）
+# 🧱 3.2 安装 Python 推理相关依赖
 # ================================================================
 RUN echo "🔧 [3.2] 安装额外 Python 包..." && \
     python3.11 -m pip install --no-cache-dir \
@@ -214,9 +198,9 @@ RUN echo "🔧 [3.2] 安装额外 Python 包..." && \
     echo "✅ [3.2] 其他依赖安装完成"
 
 # ================================================================
-# 🧱 3.3 安装 Bazelisk（用于构建 TensorFlow）
+# 🧱 3.3 安装 Bazelisk（自动管理 Bazel）
 # ================================================================
-RUN echo "🔧 [3.3] 安装 Bazelisk（自动管理 Bazel）..." && \
+RUN echo "🔧 [3.3] 安装 Bazelisk..." && \
     mkdir -p /usr/local/bin && \
     curl -fsSL https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64 \
     -o /usr/local/bin/bazelisk && \
@@ -226,7 +210,7 @@ RUN echo "🔧 [3.3] 安装 Bazelisk（自动管理 Bazel）..." && \
     echo "✅ [3.3] Bazelisk 安装完成"
 
 # ================================================================
-# 👤 4.1 创建非 root 用户 webui
+# 👤 4.1 创建非 root 用户 webui（运行时再切换）
 # ================================================================
 RUN echo "🔧 [4.1] 创建非 root 用户 webui..." && \
     useradd -m webui && \
@@ -242,12 +226,10 @@ RUN chmod +x /app/run.sh && \
     echo "✅ [5.1] 脚本授权完成"
 
 # ================================================================
-# 👤 5.2 切换至 webui 用户并设置工作目录
+# 👤 5.2 模拟切换至 webui 用户（保留日志输出，不切换用户）
 # ================================================================
-USER webui
-WORKDIR /app/webui
-RUN echo "✅ [5.2] 当前用户: $(whoami)" && \
-    echo "✅ [5.2] 当前工作目录: $(pwd)"
+RUN echo "✅ [5.2] 当前用户: root (未切换)" && \
+    echo "✅ [5.2] 当前工作目录: /app/webui（即将使用）"
 
 # ================================================================
 # 🔎 6.1 环境基础自检
@@ -260,6 +242,6 @@ RUN echo "🔎 [6.1] 开始环境基础自检..." && \
     (echo "❌ [6.1] Python 环境异常，请检查！" && exit 1)
 
 # ================================================================
-# 🚀 7.1 设置容器启动入口
+# 🚀 7.1 设置容器启动入口（延迟切换用户在 run.sh 内完成）
 # ================================================================
 ENTRYPOINT ["/app/run.sh"]
