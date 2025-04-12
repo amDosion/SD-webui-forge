@@ -140,14 +140,15 @@ RUN echo "🔧 [2.5] 安装 TensorFlow 构建依赖..." && \
     echo "✅ [2.5] TensorFlow 编译依赖安装完成"
 
 # ================================================================
-# 🧱 2.6 安装 NCCL 库（CUDA 12.8 对应 NCCL）【已被 run.sh 替代】
+# 🧱 2.6 安装 NCCL 库（CUDA 12.8 对应 NCCL）
 # ================================================================
-# RUN echo "🔧 [2.6] 安装 NCCL (libnccl2 + libnccl-dev)..." && \
-#     apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#         libnccl2 libnccl-dev && \
-#     apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
-#     echo "✅ [2.6] NCCL 安装完成"
+RUN echo "🔧 [2.6] 安装 NCCL 2.25.1 (dev + lib)..." && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libnccl2=2.25.1-1+cuda12.8 \
+    libnccl-dev=2.25.1-1+cuda12.8 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* && \
+    echo "✅ [2.25] NCCL 安装完成"
 
 # 🧪 输出已安装的 CUDA / cuDNN / NCCL 相关信息（版本 + 路径）
 RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
