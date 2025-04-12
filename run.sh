@@ -9,6 +9,10 @@ set -o pipefail
 # 日志配置
 # ==================================================
 LOG_FILE="/app/webui/launch.log"
+# 若日志文件存在则清空内容
+if [[ -f "$LOG_FILE" ]]; then
+  echo "" > "$LOG_FILE"
+fi
 # 确保日志目录存在
 mkdir -p "$(dirname "$LOG_FILE")"
 # 将所有标准输出和错误输出重定向到文件和控制台
@@ -66,10 +70,10 @@ else
   exit 1
 fi
 
-# CUDA & GPU 检查 (nvidia-smi)
+# ================================================================
+# ⚙️ CUDA & GPU 检查 (nvidia-smi + nvcc + CUDA 开发组件路径)
+# ================================================================
 if command -v nvidia-smi &>/dev/null; then
-  # 检查 nvidia-smi 输出中的 CUDA 版本
-  # 注意：nvidia-smi 显示的 CUDA 版本是驱动支持的最高版本，可能高于运行时版本 (12.8)
   echo "✅ nvidia-smi 检测成功 (驱动应支持 CUDA >= 12.8)，GPU 信息如下："
   echo "---------------- Nvidia SMI Output Start -----------------"
   nvidia-smi
@@ -78,6 +82,58 @@ else
   echo "⚠️ 未检测到 nvidia-smi 命令。可能原因：容器未加 --gpus all 启动，或 Nvidia 驱动未正确安装。"
   echo "⚠️ 无法验证 GPU 可用性，后续步骤可能失败。"
 fi
+
+# ================================================================
+# 🧠 CUDA 工具链路径与组件检查 + 自动 fallback 查找
+# ================================================================
+CUDA_PATH="/usr/local/cuda-12.8"
+echo "🔍 正在检查 CUDA 工具链路径: $CUDA_PATH"
+
+# 检查 nvcc
+if [[ -x "$CUDA_PATH/bin/nvcc" ]]; then
+  echo "✅ nvcc 可执行文件存在，版本如下："
+  "$CUDA_PATH/bin/nvcc" --version
+else
+  echo "❌ 未找到 nvcc: $CUDA_PATH/bin/nvcc"
+  echo "🔎 正在全盘查找 nvcc..."
+  find / -type f -name nvcc 2>/dev/null | grep "/bin/nvcc" || echo "❌ 全盘查找未找到 nvcc"
+fi
+
+# 检查 cuda_runtime.h
+if [[ -f "$CUDA_PATH/include/cuda_runtime.h" ]]; then
+  echo "✅ 已找到 cuda_runtime.h: $CUDA_PATH/include/cuda_runtime.h"
+else
+  echo "❌ 缺少头文件 cuda_runtime.h"
+  echo "🔎 正在全盘查找 cuda_runtime.h..."
+  find / -type f -name cuda_runtime.h 2>/dev/null || echo "❌ 未找到 cuda_runtime.h"
+fi
+
+# 检查 libcudart.so
+if [[ -f "$CUDA_PATH/lib64/libcudart.so" ]]; then
+  echo "✅ 已找到 libcudart.so: $CUDA_PATH/lib64/libcudart.so"
+else
+  echo "❌ 缺少 CUDA 运行时库 libcudart.so"
+  echo "🔎 正在全盘查找 libcudart.so..."
+  find / -type f -name libcudart.so 2>/dev/null || echo "❌ 未找到 libcudart.so"
+fi
+
+# 检查路径本体
+if [[ -d "$CUDA_PATH" ]]; then
+  echo "✅ CUDA 安装目录存在: $CUDA_PATH"
+else
+  echo "❌ CUDA 安装目录不存在: $CUDA_PATH"
+  echo "🔎 正在全盘查找包含 'cuda' 的目录..."
+  find /usr/local /opt / -type d -name "cuda*" 2>/dev/null | head -n 10
+fi
+
+    echo "🔍 LLVM 工具链路径确认 (/usr/lib/llvm-20)..."
+    if [[ -d "/usr/lib/llvm-20" ]]; then
+    echo "✅ LLVM_HOME 存在: /usr/lib/llvm-20"
+    ls -l /usr/lib/llvm-20/bin/clang* | head -n 3
+    else
+    echo "❌ 缺失 LLVM_HOME: /usr/lib/llvm-20，请检查 LLVM 安装是否完成"
+    return 0
+    fi
 
 # 容器检测
 if [ -f "/.dockerenv" ]; then
@@ -303,36 +359,46 @@ if [ "$UI" = "forge" ]; then
         echo "  - ⏭️ 跳过 PyTorch 安装 (INSTALL_TORCH=false)"
     fi
 
-    # 🔧 安装其他核心依赖（不降级，仅安装未存在的）
+    # 🔧 安装其他核心依赖（升级主依赖，跳过 xformers + tensorflow）
     REQ_FILE="requirements_versions.txt"
     if [ -f "$REQ_FILE" ]; then
-        echo "  - 使用 $REQ_FILE 安装其他依赖（仅安装未存在模块，跳过 xformers）..."
+        echo "  - 使用 $REQ_FILE 安装其他依赖（升级主依赖，跳过 xformers + tensorflow）..."
         sed -i 's/\r$//' "$REQ_FILE"
 
         while IFS= read -r line || [[ -n "$line" ]]; do
+            # 去除注释和空白
             clean_line=$(echo "$line" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
             [[ -z "$clean_line" ]] && continue
 
-            pkg_name=$(echo "$clean_line" | cut -d '=' -f1)
+            # 提取包名（支持 ==、>=、<=、~= 形式）
+            pkg_name=$(echo "$clean_line" | cut -d '=' -f1 | cut -d '<' -f1 | cut -d '>' -f1 | cut -d '~' -f1)
 
+            # 跳过已从源码构建的依赖
             if [[ "$pkg_name" == *xformers* ]]; then
                 echo "    - ⏭️ 跳过 xformers（已从源码编译）"
                 continue
             fi
 
-            if pip show "$pkg_name" > /dev/null 2>&1; then
-                echo "    - ⏩ 已存在: $pkg_name，跳过"
+            if [[ "$pkg_name" == "tensorflow" || "$pkg_name" == "tf-nightly" ]]; then
+                echo "    - ⏭️ 跳过 TensorFlow（已从源码构建）"
                 continue
             fi
 
-            echo "    - 安装: $clean_line"
-            pip install --pre "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+            # 已安装则跳过（避免覆盖 auto 安装的依赖）
+            if pip show "$pkg_name" > /dev/null 2>&1; then
+                echo "    - ⏩ 已安装: $pkg_name，跳过版本指定安装"
+                continue
+            fi
+
+            # 安装主包（不锁版本）
+            echo "    - 安装主包: $pkg_name（忽略版本限制）"
+            pip install --upgrade --no-cache-dir "$pkg_name" --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
                 | tee -a "$LOG_FILE" \
                 | sed 's/^Successfully installed/      ✅ 成功安装/' \
-                | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
+                | sed 's/^Requirement already satisfied/      ⏩ 已是最新版本/'
 
             if [ ${PIPESTATUS[0]} -ne 0 ]; then
-                echo "❌ 安装失败: $clean_line"
+                echo "❌ 安装失败: $pkg_name"
             fi
         done < "$REQ_FILE"
 
@@ -373,6 +439,9 @@ fi
 # ==================================================
 INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}"
 
+MAIN_REPO_DIR="/app/webui/sd-webui-forge"
+XFORMERS_DIR="${MAIN_REPO_DIR}/xformers-src"
+
 TORCH_VER="2.8.0.dev20250326+cu128"
 VISION_VER="0.22.0.dev20250326+cu128"
 AUDIO_VER="2.6.0.dev20250326+cu128"
@@ -406,25 +475,25 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   echo "📦 安装 Ninja 和 wheel..."
   pip install --upgrade pip wheel ninja setuptools cmake --no-cache-dir && echo "    ✅ 构建工具安装成功"
 
+  CPU_COUNT=$(nproc)
   export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}"
-  export MAX_JOBS=$(nproc)
+  export MAX_JOBS=8
+  echo "  - 系统 CPU 核心数: $CPU_COUNT"
   echo "  - 使用 CUDA 架构: $TORCH_CUDA_ARCH_LIST"
-  echo "  - 并行编译线程数: $MAX_JOBS"
+  echo "  - 并行编译线程数（固定）: $MAX_JOBS"
 
-  XFORMERS_DIR="xformers-src"
-  XFORMERS_REPO="https://github.com/facebookresearch/xformers.git"
-
+  # ✅ 克隆 xformers
   if [ ! -d "$XFORMERS_DIR/.git" ]; then
     echo "  - 克隆 xformers 仓库..."
-    git clone --recursive "$XFORMERS_REPO" "$XFORMERS_DIR"
+    git clone --recursive https://github.com/facebookresearch/xformers.git "$XFORMERS_DIR"
   else
     echo "  - 已存在 xformers 源码目录，执行 git pull..."
     cd "$XFORMERS_DIR"
     git pull --ff-only || echo "⚠️ 仓库更新失败，保留本地副本"
-    cd ..
+    cd "$MAIN_REPO_DIR"
   fi
 
-  echo "  - 初始化 Flash-Attention 子模块..."
+  echo "  - 初始化子模块（包括 third_party/flash-attention）..."
   cd "$XFORMERS_DIR"
   git submodule update --init --recursive || {
     echo "❌ 子模块拉取失败，请检查网络或 .gitmodules 设置"
@@ -439,38 +508,22 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   else
     echo "⚠️ 当前非 root 用户，跳过 apt 安装系统构建依赖"
     echo "🔍 正在检测系统中是否已预装以下依赖项：build-essential, g++, zip, unzip"
-
-    if command -v g++ >/dev/null 2>&1; then
-      echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)"
-    else
-      echo "    ❌ g++ 未安装！"
-    fi
-
-    if command -v zip >/dev/null 2>&1; then
-      echo "    ✅ zip 已安装: $(zip -v | head -n 1)"
-    else
-      echo "    ❌ zip 未安装！"
-    fi
-
-    if command -v unzip >/dev/null 2>&1; then
-      echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)"
-    else
-      echo "    ❌ unzip 未安装！"
-    fi
-
+    command -v g++   >/dev/null && echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)" || echo "    ❌ g++ 未安装！"
+    command -v zip   >/dev/null && echo "    ✅ zip 已安装: $(zip -v | head -n 1)" || echo "    ❌ zip 未安装！"
+    command -v unzip >/dev/null && echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)" || echo "    ❌ unzip 未安装！"
     echo "📌 如缺失上方任何构建依赖，请确保在 Dockerfile 中加入："
     echo "    apt-get install -y build-essential g++ zip unzip"
-  fi  # ✅ 修复点：缺失的 fi
+  fi
 
   echo "  - 安装 Python 构建依赖..."
-  > requirements.txt  # 清空旧依赖
+  > requirements.txt
   pip install -r requirements.txt --no-cache-dir || echo "    ⚠️ 无 requirements.txt 或内容为空，跳过"
 
-  echo "  - 开始构建 xformers（包含 C++ 扩展）..."
+  echo "  - 开始构建 xformers（包含 C++ 扩展 + 内置 Flash-Attention）..."
   export XFORMERS_FORCE_CUDA=1
   export XFORMERS_BUILD_CPP=1
 
-  pip install -e . --no-build-isolation --verbose
+  pip install -v -e . --no-build-isolation
   build_result=$?
 
   unset XFORMERS_FORCE_CUDA
@@ -482,11 +535,11 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
     echo "📌 setuptools: $(python -c 'import setuptools; print(setuptools.__version__)')"
     echo "📌 wheel: $(python -c 'import wheel; print(wheel.__version__)')"
     echo "📌 cmake: $(cmake --version | head -n 1)"
-    echo "📦 pip 构建依赖列表（grep 关键词）:"
+    echo "📦 pip 构建依赖列表："
     python -m pip list | grep -E 'torch|wheel|setuptools|cmake|ninja'
     exit 1
   else
-    echo "    ✅ xformers 编译并安装成功（含 C++ 扩展）"
+    echo "    ✅ xformers 编译并安装成功（含 C++ 扩展 + 内置 Flash-Attention）"
   fi
 
   echo "🔍 验证 PyTorch 和 xformers 环境..."
@@ -508,7 +561,7 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
     echo "    • 缺失 Python 构建模块（如 wheel/setuptools）"
     echo "    • 编译路径未在虚拟环境中运行"
     echo "    • CUDA/PyTorch 构建参数不一致或环境变量丢失"
-    echo "    • 子模块（如 Flash-Attention）未初始化"
+    echo "    • Flash-Attention 子模块未启用或未包含在源码中"
   else
     echo "✅ 所有 xformers 扩展可用 ✅"
   fi
@@ -516,7 +569,7 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   echo "📁 xformers 源码目录: $(realpath "$XFORMERS_DIR")"
   echo "🐍 当前 Python: $(which python)"
 
-  cd ..
+  cd "$MAIN_REPO_DIR"
   unset TORCH_CUDA_ARCH_LIST
   unset MAX_JOBS
 else
@@ -524,194 +577,132 @@ else
 fi
 
 # ==================================================
-# 🧠 [6.4] TensorFlow 编译（支持 GPU 和 CUDA 12.8）
+# 🧠 [6.4] TensorFlow 编译（maludwig 分支 + CUDA 12.8.1 + clang）
 # ==================================================
 INSTALL_TENSORFLOW="${INSTALL_TENSORFLOW:-true}"
+
 if [[ "$INSTALL_TENSORFLOW" == "true" ]]; then
-  echo "🧠 [6.4] 动态编译 TensorFlow (支持 CUDA 12.8)..."
-
+  echo "🧠 [6.4] 编译 TensorFlow（maludwig/ml/attempting_build_rtx5090 分支）..."
+  MAIN_REPO_DIR="/app/webui/sd-webui-forge"
+  TF_SRC_DIR="${MAIN_REPO_DIR}/tensorflow-src"
+  TF_SUCCESS_MARKER="${MAIN_REPO_DIR}/.tf_build_success_marker"
   TF_INSTALLED_VERSION=$(python -c "import tensorflow as tf; print(tf.__version__)" 2>/dev/null || echo "not_installed")
-  if [[ "$TF_INSTALLED_VERSION" == *"dev"* || "$TF_INSTALLED_VERSION" == *"nightly"* ]]; then
-    echo "    ✅ 已安装 tf-nightly: $TF_INSTALLED_VERSION，跳过编译步骤。"
-  else
-    echo "    - 当前 TensorFlow 版本: $TF_INSTALLED_VERSION，准备从源码构建..."
+  SKIP_TF_BUILD=false
 
-    echo "    - 检查 CPU 是否支持 AVX2..."
-    AVX2_SUPPORTED=$(grep -q avx2 /proc/cpuinfo && echo "true" || echo "false")
-    if [[ "$AVX2_SUPPORTED" != "true" ]]; then
-      echo "    ⚠️ 当前 CPU 不支持 AVX2，跳过 TensorFlow 编译"
-    else
-      TF_SRC_DIR="${TARGET_DIR:-/app/webui}/tensorflow-src"
-      if [ ! -d "$TF_SRC_DIR/.git" ]; then
-        echo "    - 克隆 TensorFlow 源码（默认 master 分支）到 $TF_SRC_DIR..."
-        git clone https://github.com/tensorflow/tensorflow.git "$TF_SRC_DIR"
-      else
-        echo "    - 已存在 TensorFlow 源目录: $TF_SRC_DIR，跳过克隆"
-      fi
-
-      cd "$TF_SRC_DIR" || { echo "❌ 切换目录失败: $TF_SRC_DIR"; exit 1; }
-
-      echo "    - 设置构建参数环境变量..."
-      export PYTHON_BIN_PATH=$(which python)
-      export PYTHON_LIB_PATH=$(python -c "import site; print(site.getsitepackages()[0])")
-      export GCC_HOST_COMPILER_PATH=$(which gcc)
-      export TF_NEED_CUDA=1
-      export TF_CUDA_VERSION=12.8
-      export TF_CUDNN_VERSION=8
-      export TF_CUDA_COMPUTE_CAPABILITIES="8.9"
-      export TF_CUDA_PATHS="/usr/local/cuda"
-      export CC_OPT_FLAGS=""
-      export TF_ENABLE_XLA=1
-      export TF_NEED_CLANG=0
-      export TF_CUDA_CLANG=0
-      export TF_DOWNLOAD_CLANG=0
-      export TF_NEED_ROCM=0
-      export TF_NEED_TENSORRT=0
-      export TF_SET_ANDROID_WORKSPACE=0
-
-      # ➕ Hermetic 变量：使 configure 全自动完成
-      export HERMETIC_CUDA_VERSION="${TF_CUDA_VERSION}"
-      export HERMETIC_CUDNN_VERSION="${TF_CUDNN_VERSION}"
-      export HERMETIC_CUDA_COMPUTE_CAPABILITIES="${TF_CUDA_COMPUTE_CAPABILITIES}"
-      export LOCAL_CUDA_PATH="/usr/local/cuda"
-      export LOCAL_CUDNN_PATH="/usr/local/cuda"
-      export LOCAL_NCCL_PATH="/usr"
-
-      # 添加在 TF 编译前的 configure 步骤之前
-      export CC=$(which gcc)
-      export CXX=$(which g++)
-
-      echo "    - 配置 TensorFlow (CUDA 支持, 非交互模式)..."
-      ./configure 2>&1 | tee ../tf_configure_log.txt || {
-        echo "❌ ./configure 配置失败，请查看 ../tf_configure_log.txt"; exit 1;
-      }
-
-      echo "    - 使用 Bazel 构建 TensorFlow pip 包..."
-      bazel build --config=opt --config=cuda //tensorflow/tools/pip_package:build_pip_package || {
-        echo "❌ Bazel 编译失败"; exit 1;
-      }
-
-      echo "    - 生成 .whl pip 安装包..."
-      ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg || {
-        echo "❌ Pip 包生成失败"; exit 1;
-      }
-
-      echo "    - 安装 .whl 包..."
-      pip install /tmp/tensorflow_pkg/tensorflow-*.whl || {
-        echo "❌ TensorFlow 安装失败"; exit 1;
-      }
-
-      cd "${TARGET_DIR:-/app/webui}"
-      echo "    ✅ TensorFlow 编译并安装成功"
-    fi
+  if [[ "$TF_INSTALLED_VERSION" != "not_installed" ]]; then
+    TF_IS_GPU=$(python -c "import tensorflow as tf; print(len(tf.config.list_physical_devices('GPU')) > 0)" 2>/dev/null)
+    [[ "$TF_IS_GPU" == "True" ]] && echo "✅ 已检测到 TensorFlow: $TF_INSTALLED_VERSION（支持 GPU）" || echo "⚠️ 已检测到 TensorFlow: $TF_INSTALLED_VERSION（仅支持 CPU）"
+    SKIP_TF_BUILD=true
   fi
 
-  echo "    - 验证 TensorFlow 是否支持 GPU..."
-  python -c "
-import tensorflow as tf
-gpus = tf.config.list_physical_devices('GPU')
-print(f'Num GPUs Available: {len(gpus)}')
-if gpus:
-    print(f'✅ 检测到 GPU 数量: {len(gpus)}')
-else:
-    print('⚠️ 未检测到 GPU，将使用 CPU')
-" || echo "⚠️ TensorFlow 启动时检测异常"
-else
-  echo "⏭️ [6.4] 跳过 TensorFlow 编译 (INSTALL_TENSORFLOW 未设置为 true)"
+  if [[ "$SKIP_TF_BUILD" != "true" && ! -f "$TF_SUCCESS_MARKER" ]]; then
+    echo "🔧 未检测到 GPU 版 TensorFlow，开始源码构建..."
+
+    if [[ ! -d "$TF_SRC_DIR/.git" ]]; then
+      echo " - 克隆 TensorFlow 主仓库..."
+      git clone https://github.com/tensorflow/tensorflow.git "$TF_SRC_DIR" || exit 1
+      cd "$TF_SRC_DIR" || exit 1
+      echo " - 添加 maludwig 分支并切换..."
+      git remote add maludwig https://github.com/maludwig/tensorflow.git
+      git fetch --all
+      git checkout ml/attempting_build_rtx5090 || git checkout -b ml/attempting_build_rtx5090 maludwig/ml/attempting_build_rtx5090 || exit 1
+      git pull maludwig ml/attempting_build_rtx5090
+    else
+      echo " - 已存在 TensorFlow 源码目录: $TF_SRC_DIR"
+      cd "$TF_SRC_DIR" || exit 1
+    fi
+
+    git submodule update --init --recursive
+
+    echo "🔍 构建前环境确认（Clang / CUDA / cuDNN / NCCL）"
+    CLANG_PATH="$(which clang || echo '/usr/lib/llvm-20/bin/clang')"
+    LLVM_CONFIG_PATH="$(which llvm-config || echo '/usr/lib/llvm-20/bin/llvm-config')"
+    echo " - Clang 路径: $CLANG_PATH"; $CLANG_PATH --version | head -n 1 || echo "❌ 未找到 clang"
+    echo " - LLVM Config 路径: $LLVM_CONFIG_PATH"; $LLVM_CONFIG_PATH --version || echo "❌ 未找到 llvm-config"
+    echo " - Bazel 版本:"; bazel --version || echo "❌ 未找到 Bazel"
+
+    echo "📦 CUDA:"; which nvcc; nvcc --version || echo "❌ 未找到 nvcc"
+    echo "📁 CUDA 路径: ${CUDA_HOME:-/usr/local/cuda}"; ls -ld /usr/local/cuda* || echo "❌ 未找到 CUDA 安装目录"
+    [[ -L /usr/local/cuda-12.8/lib/lib64 ]] && echo "⚠️ 检测到递归符号链接，建议修复: rm -r lib && ln -s lib64 lib"
+    [[ ! -f /usr/local/cuda-12.8/lib64/libcudart_static.a ]] && echo "⚠️ 未找到 libcudart_static.a，建议：apt-get install --reinstall cuda-cudart-dev-12-8"
+
+    echo "📦 cuDNN:"; find /usr -name "libcudnn.so*" | sort || echo "❌ 未找到 cuDNN"
+    echo "📁 cuDNN 头文件:"; find /usr -name "cudnn.h" || echo "❌ 未找到 cudnn.h"
+
+    echo "📦 NCCL:"; find /usr -name "libnccl.so*" | sort || echo "❌ 未找到 NCCL"
+    echo "📁 NCCL 头文件:"; find /usr -name "nccl.h" || echo "❌ 未找到 nccl.h"
+
+    echo "✅ 环境确认完成"
+
+    cat > ../card_details.cu <<EOF
+#include <cuda_runtime.h>
+#include <cudnn.h>
+#include <iostream>
+int main() {
+  cudaDeviceProp prop; int device;
+  cudaGetDevice(&device); cudaGetDeviceProperties(&prop, device);
+  size_t free_mem, total_mem; cudaMemGetInfo(&free_mem, &total_mem);
+  std::cout << "> GPU: " << prop.name << "\\n> Compute: " << prop.major << "." << prop.minor << "\\n> VRAM: "
+            << (total_mem - free_mem) / (1024 * 1024) << "/" << total_mem / (1024 * 1024) << " MB\\n";
+  std::cout << "> cuDNN: " << CUDNN_MAJOR << "." << CUDNN_MINOR << "." << CUDNN_PATCHLEVEL << std::endl;
+  return 0;
+}
+EOF
+
+    echo "🧪 使用 nvcc 编译测试程序"; nvcc -o ../card_details_nvcc ../card_details.cu && ../card_details_nvcc || echo "❌ nvcc 编译失败"
+    echo "🧪 使用 clang++ 编译测试程序"
+    clang++ -std=c++17 --cuda-gpu-arch=sm_89 -x cuda ../card_details.cu -o ../card_details_clang \
+      --cuda-path=/usr/local/cuda-12.8 \
+      -I/usr/local/cuda-12.8/include \
+      -L/usr/local/cuda-12.8/lib64 \
+      -lcudart && ../card_details_clang || echo "❌ clang++ 编译失败"
+
+    export LLVM_HOME="/usr/lib/llvm-20"
+    export CUDA_HOME="/usr/local/cuda-12.8"
+    export PATH="$LLVM_HOME/bin:$CUDA_HOME/bin:$PWD/../venv/bin:$PATH"
+    export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"
+    export CPATH="$CUDA_HOME/include:$CPATH"
+    export HERMETIC_CUDA_VERSION="12.8.1"
+    export HERMETIC_CUDNN_VERSION="9.8.0"
+    export HERMETIC_CUDA_COMPUTE_CAPABILITIES="compute_89"
+    export LOCAL_CUDA_PATH="$CUDA_HOME"
+    export LOCAL_NCCL_PATH="/usr/lib/x86_64-linux-gnu"
+    export TF_NEED_CUDA=1
+    export CLANG_CUDA_COMPILER_PATH="$CLANG_PATH"
+
+    echo "⚙️ 执行 configure.py..."
+    python configure.py 2>&1 | tee ../tf_configure_log.txt || { echo "❌ configure.py 执行失败"; exit 1; }
+
+    echo "🧹 执行 bazel clean --expunge..."; bazel clean --expunge
+
+    echo "🚀 构建 TensorFlow..."
+    bazel build //tensorflow/tools/pip_package:wheel \
+      --repo_env=WHEEL_NAME=tensorflow \
+      --config=cuda \
+      --config=cuda_clang \
+      --config=cuda_wheel \
+      --config=v2 \
+      --jobs=$(nproc) \
+      --copt=-Wno-error \
+      --copt=-Wno-c23-extensions \
+      --copt=-Wno-gnu-offsetof-extensions \
+      --copt=-Wno-macro-redefined \
+      --verbose_failures || {
+        echo "❌ Bazel 构建失败，尝试 fallback 安装 tf-nightly"
+        pip install tf-nightly || { echo "❌ fallback 安装失败"; exit 1; }
+        exit 0
+      }
+
+    echo "📦 安装 TensorFlow pip 包..."
+    pip install bazel-bin/tensorflow/tools/pip_package/wheel_house/tensorflow-*.whl || { echo "❌ 安装失败"; exit 1; }
+
+    echo "✅ TensorFlow 构建并安装完成"
+    touch "$TF_SUCCESS_MARKER"
+    cd "$MAIN_REPO_DIR"
+  else
+    echo "✅ TensorFlow 已构建或安装，跳过源码构建"
+  fi
 fi
-
-# ==================================================
-# [6.5] TensorFlow GPU 性能优化配置（XLA + 动态显存 + RTX 4090 增强）
-# ==================================================
-echo "⚡ [6.5] 配置 TensorFlow GPU 性能优化参数..."
-
-cat > ./tf_gpu_opt.py <<EOF
-import os
-import tensorflow as tf
-
-print("🔧 启用 XLA JIT 编译器...")
-tf.config.optimizer.set_jit(True)
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_auto_jit=2'
-os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
-
-print("🔧 启用动态显存分配...")
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        print(f"✅ 成功为 {len(gpus)} 个 GPU 启用动态显存")
-    except Exception as e:
-        print(f"⚠️ 设置动态显存失败: {e}")
-else:
-    print("⚠️ 未检测到 GPU，跳过显存配置")
-
-print("🔍 检测是否为 Ada Lovelace 系列显卡（如 RTX 4090）...")
-from tensorflow.python.eager.context import context
-if gpus:
-    dev_details = tf.config.experimental.get_device_details(gpus[0])
-    if 'compute_capability' in dev_details and dev_details['compute_capability'] >= (8,9):
-        print("✅ 检测到 RTX 4090 或以上架构，可启用高级特性（如 FP8 支持）")
-    else:
-        print("ℹ️ 非 Ada 架构，略过高级特性提示")
-EOF
-
-echo "🚀 执行 tf_gpu_opt.py 配置检查..."
-python ./tf_gpu_opt.py || echo "⚠️ TensorFlow 优化检查执行失败，请手动排查"
-
-echo "✅ [6.5] TensorFlow GPU 优化配置完成"
-
-# ==================================================
-# [6.6] FP8 支持检测 + TensorFlow 性能探测（针对 RTX 4090）
-# ==================================================
-echo "🔍 [6.6] 开始检测 FP8 支持情况 + TensorFlow 执行性能..."
-
-cat > ./tf_fp8_check.py <<EOF
-import tensorflow as tf
-import os
-
-print("🧠 当前 TensorFlow 版本:", tf.__version__)
-print("📦 CUDA 可用:", tf.config.list_physical_devices('GPU'))
-
-gpus = tf.config.list_physical_devices('GPU')
-if not gpus:
-    print("❌ 未检测到 GPU，无法检查 FP8 支持")
-    exit(0)
-
-device_info = tf.config.experimental.get_device_details(gpus[0])
-compute_capability = device_info.get("compute_capability", (0, 0))
-print("🔧 GPU Compute Capability:", compute_capability)
-
-if compute_capability >= (8, 9):
-    print("✅ 当前为 Ada 架构 (如 RTX 4090)，理论支持 FP8 和 TensorFloat32")
-    print("⚙️ 你可以尝试使用 FP8 模型库或微调工具")
-else:
-    print("ℹ️ 当前架构低于 Ada 系列，FP8 支持可能受限")
-
-print("🚀 执行简单卷积性能探测...")
-import time
-import numpy as np
-
-B, H, W, C = 8, 512, 512, 3
-X = tf.constant(np.random.randn(B, H, W, C).astype("float32"))
-conv = tf.keras.layers.Conv2D(64, 3, padding="same")
-
-start = time.time()
-Y = conv(X)
-end = time.time()
-print(f"✅ 卷积前向执行时间: {end - start:.4f} 秒")
-
-if tf.config.optimizer.get_jit():
-    print("✅ XLA 已启用")
-else:
-    print("⚠️ XLA 未启用，可尝试 tf.config.optimizer.set_jit(True)")
-EOF
-
-echo "🚀 执行 tf_fp8_check.py 检测脚本..."
-python ./tf_fp8_check.py || echo "⚠️ [6.6] 检测脚本执行失败，请手动排查"
-
-echo "✅ [6.6] FP8 支持与性能探测完成"
-
 
 # ==================================================
 # 创建 WebUI 相关目录
@@ -1006,66 +997,66 @@ else
 fi
 
 # ==================================================
-# 🔥 启动 WebUI (使用 venv 内的 Python)
+# 🔥 [11] 启动 WebUI（使用 venv 内的 Python）
 # ==================================================
-echo "🚀 [11] 所有准备工作完成，开始启动 WebUI (直接执行 launch.py)..."
+echo "🚀 [11] 所有准备工作完成，开始启动 WebUI..."
 echo "  - UI Type: ${UI}"
 
-# ⚙️ 打印关键环境依赖版本信息
-echo "📋 [11.1] 当前 Python & 依赖版本:"
+# 🔍 打印当前 Python 解释器与依赖版本信息
+echo "📋 [11.1] 当前 Python 环境信息:"
 "$VENV_DIR/bin/python" -c "
 import sys
-print(f'🧠 Python 解释器: {sys.executable}')
-print(f'🐍 Python 版本: {sys.version}')
-
+print(f'🧠 Python: {sys.version}')
+print(f'🧭 Python Path: {sys.executable}')
 try:
     import torch
-    print(f'🔥 PyTorch: {torch.__version__} (CUDA: {torch.version.cuda})')
-except Exception as e:
-    print(f'🔥 PyTorch: 未安装或出错: {e}')
-
-try:
-    import xformers
-    print(f'🧩 xFormers: {xformers.__version__}')
-except Exception as e:
-    print(f'🧩 xFormers: 未安装或出错: {e}')
-
+    print(f'🔥 torch: {torch.__version__}, CUDA: {torch.version.cuda}')
+except: print('🔥 torch: 未安装')
 try:
     import tensorflow as tf
-    gpus = tf.config.list_physical_devices(\"GPU\")
-    print(f'🧠 TensorFlow: {tf.__version__} (GPU 可见: {len(gpus)})')
-except Exception as e:
-    print(f'🧠 TensorFlow: 未安装或出错: {e}')
+    devices = tf.config.list_physical_devices('GPU')
+    print(f'🧠 tensorflow: {tf.__version__}, GPU 可用: {len(devices)}')
+except: print('🧠 tensorflow: 未安装')
+try:
+    import xformers
+    print(f'🧩 xformers: {xformers.__version__}')
+except: print('🧩 xformers: 未安装')
 "
 
-# 拼接参数
+# ==================================================
+# 🔧 拼接启动参数并显示（ALL_ARGS）
+# ==================================================
 ALL_ARGS="$COMMANDLINE_ARGS $ARGS"
 echo "  - 启动参数 (ALL_ARGS): $ALL_ARGS"
 
-# 确保在 WebUI 的正确目录中
+# 🧭 确保在 WebUI 项目目录下
 CURRENT_DIR=$(pwd)
 if [[ "$CURRENT_DIR" != "$TARGET_DIR" ]]; then
-    echo "⚠️ 当前目录 ($CURRENT_DIR) 不是预期的 WebUI 目录 ($TARGET_DIR)，尝试切换..."
-    cd "$TARGET_DIR" || { echo "❌ 无法切换到目录 $TARGET_DIR，启动失败！"; exit 1; }
-    echo "✅ 已切换到目录: $(pwd)"
+    echo "⚠️ 当前目录 ($CURRENT_DIR) 非 $TARGET_DIR，尝试切换..."
+    cd "$TARGET_DIR" || { echo "❌ 无法进入 $TARGET_DIR"; exit 1; }
 fi
 
-# 检查 launch.py 是否存在
-if [ ! -f "launch.py" ]; then
-    echo "❌ 错误: 未在当前目录 ($(pwd)) 中找到 launch.py 文件！"
+# ✅ 检查 launch.py 是否存在
+if [[ ! -f "launch.py" ]]; then
+    echo "❌ 未找到 launch.py，请确认路径正确：$(pwd)"
     exit 1
 fi
 
-# 打印执行时间和执行命令
-echo "⏳ WebUI 启动时间: $(date)"
-echo "=================================================="
-echo "🚀 执行命令:"
-echo "$VENV_DIR/bin/python launch.py $ALL_ARGS"
-echo "=================================================="
+# 🧑‍💻 强制使用 webui 用户执行 launch.py（除非明确设置 SKIP_USER_SWITCH=true）
+if [[ "$(id -u)" == "0" ]]; then
+  if [[ "$SKIP_USER_SWITCH" == "true" ]]; then
+    echo "⚠️ 已设置 SKIP_USER_SWITCH=true，将以 root 启动（仅建议调试）"
+    exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+  else
+    echo "👤 当前为 root，将使用 sudo 切换至 webui 用户运行 launch.py"
+    exec sudo -u webui --preserve-env=PATH,LD_LIBRARY_PATH,CUDA_HOME \
+         "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+  fi
+else
+  echo "👤 当前非 root，直接运行 launch.py"
+  exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+fi
 
-# 启动 WebUI，替换当前 shell
-exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
-
-# 如果 exec 成功执行，脚本不会执行到这里
-echo "❌ 启动 launch.py 失败！请检查日志和执行权限。"
+# 万一 exec 失败
+echo "❌ launch.py 启动失败"
 exit 1
