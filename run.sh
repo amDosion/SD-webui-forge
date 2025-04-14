@@ -699,16 +699,17 @@ EOF
       --copt=-Wno-gnu-offsetof-extensions \
       --copt=-Wno-macro-redefined \
       --verbose_failures || {
-        echo "❌ Bazel 构建失败，尝试 fallback 安装 tf-nightly"
-        pip install tf-nightly || { echo "❌ fallback 安装失败"; exit 1; }
-        exit 0
+        echo "❌ Bazel 构建失败，尝试 fallback 安装 tf-nightly..."
+        pip install tf-nightly && echo "✅ fallback 安装成功，继续执行..." || { echo "❌ fallback 安装失败"; exit 1; }
       }
 
-    echo "📦 安装 TensorFlow pip 包..."
-    pip install bazel-bin/tensorflow/tools/pip_package/wheel_house/tensorflow-*.whl || { echo "❌ 安装失败"; exit 1; }
+    if ls bazel-bin/tensorflow/tools/pip_package/wheel_house/tensorflow-*.whl 1>/dev/null 2>&1; then
+      echo "📦 安装 TensorFlow pip 包..."
+      pip install bazel-bin/tensorflow/tools/pip_package/wheel_house/tensorflow-*.whl || { echo "❌ 安装失败"; exit 1; }
+      echo "✅ TensorFlow 构建并安装完成"
+      touch "$TF_SUCCESS_MARKER"
+    fi
 
-    echo "✅ TensorFlow 构建并安装完成"
-    touch "$TF_SUCCESS_MARKER"
     cd "$MAIN_REPO_DIR"
   else
     echo "✅ TensorFlow 已构建或安装，跳过源码构建"
