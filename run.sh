@@ -501,19 +501,30 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
     exit 1
   }
 
-  # ✅ 安装系统依赖（仅限 root）
-  if [ "$(id -u)" -eq 0 ]; then
-    echo "🔧 以 root 用户执行，尝试安装系统级构建依赖..."
-    apt-get update && apt-get install -y build-essential g++ zip unzip
+# ✅ 安装系统依赖（仅限 root）
+if [ "$(id -u)" -eq 0 ]; then
+  echo "🔧 以 root 用户执行，检查系统构建依赖是否已安装..."
+  MISSING=()
+
+  command -v g++   >/dev/null && echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)" || MISSING+=("g++")
+  command -v zip   >/dev/null && echo "    ✅ zip 已安装: $(zip -v | head -n 1)" || MISSING+=("zip")
+  command -v unzip >/dev/null && echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)" || MISSING+=("unzip")
+
+  if [ "${#MISSING[@]}" -eq 0 ]; then
+    echo "🎉 所有依赖已满足，无需安装。"
   else
-    echo "⚠️ 当前非 root 用户，跳过 apt 安装系统构建依赖"
-    echo "🔍 正在检测系统中是否已预装以下依赖项：build-essential, g++, zip, unzip"
-    command -v g++   >/dev/null && echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)" || echo "    ❌ g++ 未安装！"
-    command -v zip   >/dev/null && echo "    ✅ zip 已安装: $(zip -v | head -n 1)" || echo "    ❌ zip 未安装！"
-    command -v unzip >/dev/null && echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)" || echo "    ❌ unzip 未安装！"
-    echo "📌 如缺失上方任何构建依赖，请确保在 Dockerfile 中加入："
-    echo "    apt-get install -y build-essential g++ zip unzip"
+    echo "⚠️ 以下依赖缺失，将尝试安装：${MISSING[*]}"
+    apt-get update && apt-get install -y "${MISSING[@]}"
   fi
+else
+  echo "⚠️ 当前非 root 用户，跳过 apt 安装系统构建依赖"
+  echo "🔍 正在检测系统中是否已预装以下依赖项：build-essential, g++, zip, unzip"
+  command -v g++   >/dev/null && echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)" || echo "    ❌ g++ 未安装！"
+  command -v zip   >/dev/null && echo "    ✅ zip 已安装: $(zip -v | head -n 1)" || echo "    ❌ zip 未安装！"
+  command -v unzip >/dev/null && echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)" || echo "    ❌ unzip 未安装！"
+  echo "📌 如缺失上方任何构建依赖，请确保在 Dockerfile 中加入："
+  echo "    apt-get install -y build-essential g++ zip unzip"
+fi
 
   echo "  - 安装 Python 构建依赖..."
   > requirements.txt
