@@ -512,7 +512,7 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   echo "📁 准备 xformers 源码..."
   if [ ! -d "$XFORMERS_DIR/.git" ]; then
     echo "  - 克隆 xformers 仓库..."
-    git clone --recursive https://github.com/facebookresearch/xformers.git "$XFORMERS_DIR"
+    git clone --recursive https://github.com/amDosion/xformers.git "$XFORMERS_DIR"
   else
     echo "  - 已存在源码目录，执行 pull..."
     cd "$XFORMERS_DIR"
