@@ -210,11 +210,14 @@ RUN echo "🔧 [3.3] 安装 Bazelisk..." && \
     echo "✅ [3.3] Bazelisk 安装完成"
 
 # ================================================================
-# 👤 4.1 创建非 root 用户 webui（运行时再切换）
+# 👤 4.1 安装 sudo 并创建非 root 用户 webui（附带验证）
 # ================================================================
 RUN echo "🔧 [4.1] 安装 sudo 并创建非 root 用户 webui..." && \
-    apt-get update && apt-get install -y sudo && \
+    apt-get update && \
+    apt-get install -y sudo && \
+    command -v sudo && echo "✅ sudo 安装成功" || (echo "❌ sudo 安装失败" && exit 1) && \
     useradd -m webui && \
+    id webui && echo "✅ 用户 webui 创建成功" || (echo "❌ 用户创建失败" && exit 1) && \
     echo "webui ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/webui && \
     chmod 440 /etc/sudoers.d/webui && \
     echo "✅ [4.1] sudo 与 webui 用户设置完成"
