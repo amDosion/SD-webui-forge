@@ -38,6 +38,18 @@ else
   exit 1
 fi
 
+# ==================================================
+# 🔒 [6.2] sudo 安装检查（确保 root 可切换为 webui 用户）
+# ==================================================
+echo "🔒 [6.2] 检查 sudo 是否已正确安装..."
+if command -v sudo &>/dev/null; then
+  echo "✅ [6.2] sudo 已安装: $(sudo --version | head -n 1)"
+else
+  echo "❌ [6.2] sudo 未安装，请检查 Dockerfile 中是否已正确安装 sudo"
+  echo "📌 建议在 Dockerfile 中加入：apt-get install -y sudo"
+  exit 1
+fi
+
 # pip 检查 (通过 python -m pip 调用)
 if python3.11 -m pip --version &>/dev/null; then
   echo "✅ pip for Python 3.11 版本: $(python3.11 -m pip --version)"
@@ -45,104 +57,6 @@ else
   echo "❌ 未找到 pip for Python 3.11！"
   exit 1
 fi
-
-# 检查 g++ 安装情况
-if command -v g++ &>/dev/null; then
-  GPP_PATH=$(command -v g++)
-  GPP_VERSION=$($GPP_PATH --version | head -n1)
-  echo "✅ g++ 已安装：$GPP_PATH"
-  echo "   → 版本: $GPP_VERSION"
-else
-  echo "❌ 未找到 g++，请手动安装"
-  exit 1
-fi
-
-# 检查 unzip 安装情况
-if command -v unzip &>/dev/null; then
-  UNZIP_PATH=$(command -v unzip)
-  UNZIP_VERSION=$($UNZIP_PATH -v 2>&1 | head -n1)
-  echo "✅ unzip 已安装：$UNZIP_PATH"
-  echo "   → 版本: $UNZIP_VERSION"
-else
-  echo "❌ 未找到 unzip，安装失败"
-  exit 1
-fi
-
-# 检查 zip 安装情况
-if command -v zip &>/dev/null; then
-  ZIP_PATH=$(command -v zip)
-  ZIP_VERSION=$($ZIP_PATH -v 2>&1 | head -n1)
-  echo "✅ zip 已安装：$ZIP_PATH"
-  echo "   → 版本: $ZIP_VERSION"
-else
-  echo "❌ 未找到 zip，安装失败"
-  exit 1
-fi
-
-# ================================================================
-# ⚙️ CUDA & GPU 检查 (nvidia-smi + nvcc + CUDA 开发组件路径)
-# ================================================================
-if command -v nvidia-smi &>/dev/null; then
-  echo "✅ nvidia-smi 检测成功 (驱动应支持 CUDA >= 12.8)，GPU 信息如下："
-  echo "---------------- Nvidia SMI Output Start -----------------"
-  nvidia-smi
-  echo "---------------- Nvidia SMI Output End -------------------"
-else
-  echo "⚠️ 未检测到 nvidia-smi 命令。可能原因：容器未加 --gpus all 启动，或 Nvidia 驱动未正确安装。"
-  echo "⚠️ 无法验证 GPU 可用性，后续步骤可能失败。"
-fi
-
-# ================================================================
-# 🧠 CUDA 工具链路径与组件检查 + 自动 fallback 查找
-# ================================================================
-CUDA_PATH="/usr/local/cuda-12.8"
-echo "🔍 正在检查 CUDA 工具链路径: $CUDA_PATH"
-
-# 检查 nvcc
-if [[ -x "$CUDA_PATH/bin/nvcc" ]]; then
-  echo "✅ nvcc 可执行文件存在，版本如下："
-  "$CUDA_PATH/bin/nvcc" --version
-else
-  echo "❌ 未找到 nvcc: $CUDA_PATH/bin/nvcc"
-  echo "🔎 正在全盘查找 nvcc..."
-  find / -type f -name nvcc 2>/dev/null | grep "/bin/nvcc" || echo "❌ 全盘查找未找到 nvcc"
-fi
-
-# 检查 cuda_runtime.h
-if [[ -f "$CUDA_PATH/include/cuda_runtime.h" ]]; then
-  echo "✅ 已找到 cuda_runtime.h: $CUDA_PATH/include/cuda_runtime.h"
-else
-  echo "❌ 缺少头文件 cuda_runtime.h"
-  echo "🔎 正在全盘查找 cuda_runtime.h..."
-  find / -type f -name cuda_runtime.h 2>/dev/null || echo "❌ 未找到 cuda_runtime.h"
-fi
-
-# 检查 libcudart.so
-if [[ -f "$CUDA_PATH/lib64/libcudart.so" ]]; then
-  echo "✅ 已找到 libcudart.so: $CUDA_PATH/lib64/libcudart.so"
-else
-  echo "❌ 缺少 CUDA 运行时库 libcudart.so"
-  echo "🔎 正在全盘查找 libcudart.so..."
-  find / -type f -name libcudart.so 2>/dev/null || echo "❌ 未找到 libcudart.so"
-fi
-
-# 检查路径本体
-if [[ -d "$CUDA_PATH" ]]; then
-  echo "✅ CUDA 安装目录存在: $CUDA_PATH"
-else
-  echo "❌ CUDA 安装目录不存在: $CUDA_PATH"
-  echo "🔎 正在全盘查找包含 'cuda' 的目录..."
-  find /usr/local /opt / -type d -name "cuda*" 2>/dev/null | head -n 10
-fi
-
-    echo "🔍 LLVM 工具链路径确认 (/usr/lib/llvm-20)..."
-    if [[ -d "/usr/lib/llvm-20" ]]; then
-    echo "✅ LLVM_HOME 存在: /usr/lib/llvm-20"
-    ls -l /usr/lib/llvm-20/bin/clang* | head -n 3
-    else
-    echo "❌ 缺失 LLVM_HOME: /usr/lib/llvm-20，请检查 LLVM 安装是否完成"
-    return 0
-    fi
 
 # 容器检测
 if [ -f "/.dockerenv" ]; then
@@ -464,7 +378,6 @@ if [[ "$INSTALL_XFORMERS" == "true" ]]; then
   if python -c "import xformers" >/dev/null 2>&1 && python -m xformers.info | grep -q "available"; then
     echo "✅ 已检测到 xformers 且扩展已启用，版本: $(python -c 'import xformers; print(xformers.__version__)')"
     echo "📦 当前环境无需重新编译 xformers"
-    exit 0
   fi
 
   echo "📦 检查 PyTorch 是否为指定版本..."
@@ -1044,9 +957,18 @@ if [[ "$(id -u)" == "0" ]]; then
     echo "⚠️ 已设置 SKIP_USER_SWITCH=true，将以 root 启动（仅建议调试）"
     exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
   else
-    echo "👤 当前为 root，将使用 sudo 切换至 webui 用户运行 launch.py"
-    exec sudo -u webui --preserve-env=PATH,LD_LIBRARY_PATH,CUDA_HOME \
-         "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+    echo "👤 当前为 root，将尝试使用 sudo 切换至 webui 用户运行 launch.py"
+    if command -v /usr/bin/sudo &>/dev/null; then
+      /usr/bin/sudo -u webui --preserve-env=PATH,LD_LIBRARY_PATH,CUDA_HOME \
+        "$VENV_DIR/bin/python" launch.py $ALL_ARGS || {
+          echo "❌ sudo 执行失败，WebUI 启动中止"
+          exit 1
+        }
+    else
+      echo "❌ sudo 未安装，无法切换用户"
+      echo "📌 请检查 Dockerfile 或设置 SKIP_USER_SWITCH=true 以跳过切换"
+      exit 1
+    fi
   fi
 else
   echo "👤 当前非 root，直接运行 launch.py"
