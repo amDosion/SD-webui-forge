@@ -264,7 +264,6 @@ echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
 # 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
 # ==================================================
 export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
-ARGS="$COMMANDLINE_ARGS $ARGS"
 echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
 
 # ==================================================
@@ -360,129 +359,299 @@ fi
 # ==================================================
 # 🔧 [6.3] Ninja + xformers 编译安装（适配 CUDA 12.8）
 # ==================================================
-INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}"
+# --- 配置 ---
+INSTALL_XFORMERS="${INSTALL_XFORMERS:-true}" # 设置为 false 以显式禁用
+MAIN_REPO_DIR="/app/webui/sd-webui-forge"    # 如果你的主仓库位置不同，请调整
+XFORMERS_SRC_DIR="${MAIN_REPO_DIR}/xformers-src"
+XFORMERS_REPO_URL="https://github.com/amDosion/xformers.git" # 官方仓库 - 如果使用 fork，请更改
 
-MAIN_REPO_DIR="/app/webui/sd-webui-forge"
-XFORMERS_DIR="${MAIN_REPO_DIR}/xformers-src"
-
+# 目标 PyTorch 版本 (CUDA 12.8 的 Nightly 版本示例)
+# 注意: 确保这些与你的设置所需的*精确*版本匹配。
 TORCH_VER="2.8.0.dev20250326+cu128"
 VISION_VER="0.22.0.dev20250326+cu128"
 AUDIO_VER="2.6.0.dev20250326+cu128"
-TORCH_COMMAND="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/nightly/cu128"
+TORCH_INSTALL_CMD="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/nightly/cu128 --no-cache-dir"
 
-if [[ "$INSTALL_XFORMERS" == "true" ]]; then
-  echo "⚙️ [6.3] 正在编译并安装 xformers（适配 CUDA 12.8）"
-  echo "🐍 当前 Python 路径: $(which python)"
+# 构建配置
+TARGET_CUDA_ARCH="${TORCH_CUDA_ARCH_LIST:-8.9}" # 默认为 8.9 (例如，RTX 3090/4090)，如果外部未设置
+MAX_BUILD_JOBS="${MAX_JOBS:-$(nproc)}"         # 默认使用所有可用核心，如果需要，稍后限制
+# 如果需要，限制 MAX_JOBS (例如，限制为 8)
+# MAX_BUILD_JOBS=$((${MAX_BUILD_JOBS} > 8 ? 8 : ${MAX_BUILD_JOBS}))
 
-  echo "🔍 检查 xformers 是否已正确安装..."
-  if python -c "import xformers" >/dev/null 2>&1 && python -m xformers.info | grep -q "available"; then
-    echo "✅ 已检测到 xformers 且扩展已启用，版本: $(python -c 'import xformers; print(xformers.__version__)')"
-    echo "📦 当前环境无需重新编译 xformers"
-  fi
+# --- 辅助函数 ---
+log_info() { echo "✅ INFO: $1"; }
+log_warn() { echo "⚠️ WARN: $1"; }
+log_error() { echo "❌ ERROR: $1"; }
+log_step() { echo -e "\n🚀 STEP: $1"; }
+log_detail() { echo "  ➤ $1"; }
 
-  echo "📦 检查 PyTorch 是否为指定版本..."
-  torch_ver=$(pip show torch 2>/dev/null | awk '/^Version:/{print $2}')
-  vision_ver=$(pip show torchvision 2>/dev/null | awk '/^Version:/{print $2}')
-  audio_ver=$(pip show torchaudio 2>/dev/null | awk '/^Version:/{print $2}')
+check_command() {
+  command -v "$1" >/dev/null 2>&1
+}
 
-  if [[ "$torch_ver" != "$TORCH_VER" || "$vision_ver" != "$VISION_VER" || "$audio_ver" != "$AUDIO_VER" ]]; then
-    echo "🔧 安装指定版本的 PyTorch 组件..."
-    echo "    ➤ $TORCH_COMMAND"
-    $TORCH_COMMAND && echo "    ✅ PyTorch 安装成功" || { echo "    ❌ PyTorch 安装失败"; exit 1; }
-  else
-    echo "    ✅ 已存在所需版本 torch/vision/audio，跳过安装"
-  fi
-
-  echo "📦 检查并安装 pip 构建依赖..."
-  for pkg in pip wheel setuptools cmake ninja; do
-    ver=$(pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')
-    if [[ -n "$ver" ]]; then
-      echo "    ✅ $pkg 已安装: v$ver"
-    else
-      echo "    ❌ $pkg 未安装，尝试安装中..."
-      pip install "$pkg" --no-cache-dir || echo "    ⚠️ 安装 $pkg 失败，请检查网络或 PyPI"
-    fi
-  done
-
-  # ✅ 检查系统依赖（仅 root 用户可自动安装）
-  if [ "$(id -u)" -eq 0 ]; then
-    echo "🔧 检查系统构建依赖是否已安装..."
-    MISSING=()
-    command -v g++   >/dev/null && echo "    ✅ g++ 已安装: $(g++ --version | head -n 1)" || MISSING+=("g++")
-    command -v zip   >/dev/null && echo "    ✅ zip 已安装: $(zip -v | head -n 1)" || MISSING+=("zip")
-    command -v unzip >/dev/null && echo "    ✅ unzip 已安装: $(unzip -v | head -n 1)" || MISSING+=("unzip")
-    if [ "${#MISSING[@]}" -eq 0 ]; then
-      echo "🎉 所有系统构建依赖已满足，无需安装。"
-    else
-      echo "⚠️ 缺失依赖: ${MISSING[*]}，尝试安装..."
-      apt-get update && apt-get install -y "${MISSING[@]}"
-    fi
-  else
-    echo "⚠️ 当前非 root 用户，跳过系统依赖安装"
-  fi
-
-  # ✅ 准备源码
-  echo "📁 准备 xformers 源码..."
-  if [ ! -d "$XFORMERS_DIR/.git" ]; then
-    echo "  - 克隆 xformers 仓库..."
-    git clone --recursive https://github.com/amDosion/xformers.git "$XFORMERS_DIR"
-  else
-    echo "  - 已存在源码目录，执行 pull..."
-    cd "$XFORMERS_DIR"
-    git pull --ff-only || echo "⚠️ 仓库更新失败，跳过"
-    cd "$MAIN_REPO_DIR"
-  fi
-
-  echo "🔄 初始化子模块（包含 Flash-Attention）..."
-  cd "$XFORMERS_DIR"
-  git submodule update --init --recursive || {
-    echo "❌ 子模块拉取失败，请检查 .gitmodules 或网络连接"
-    exit 1
-  }
-
-  echo "🔧 开始构建 xformers..."
-  export XFORMERS_FORCE_CUDA=1
-  export XFORMERS_BUILD_CPP=1
-  export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}"
-  export MAX_JOBS=8
-  echo "    ➤ CUDA 架构: $TORCH_CUDA_ARCH_LIST"
-  echo "    ➤ 并行编译线程数: $MAX_JOBS"
-
-  pip install -v -e . --no-build-isolation
-  build_result=$?
-
-  unset XFORMERS_FORCE_CUDA
-  unset XFORMERS_BUILD_CPP
-  unset TORCH_CUDA_ARCH_LIST
-  unset MAX_JOBS
-
-  if [ $build_result -ne 0 ]; then
-    echo "❌ xformers 编译失败，尝试输出诊断信息..."
-    python -m pip list | grep -E 'torch|xformers|ninja|wheel|cmake|setuptools'
-    exit 1
-  fi
-
-  echo "✅ xformers 安装完成（已启用 C++ 扩展）"
-
-  echo "📋 运行 torch 环境收集..."
-  python -m torch.utils.collect_env | tee ../torch_env.txt
-
-  echo "🧩 运行 xformers.info 检查模块状态..."
-  python -m xformers.info | tee ../xformers_info.txt || echo "⚠️ 无法执行 xformers.info"
-
-  if grep -q "unavailable" ../xformers_info.txt; then
-    echo "⚠️ 以下模块未启用："
-    grep "unavailable" ../xformers_info.txt | sed 's/^/    - /'
-  else
-    echo "✅ 所有 C++ 扩展模块可用 ✅"
-  fi
-
-  echo "📁 xformers 源码目录: $(realpath "$XFORMERS_DIR")"
-  echo "🐍 当前 Python: $(which python)"
-  cd "$MAIN_REPO_DIR"
-else
-  echo "⏭️ [6.3] 跳过 xformers 编译安装（INSTALL_XFORMERS=false）"
+# --- 主脚本逻辑 ---
+if [[ "$INSTALL_XFORMERS" != "true" ]]; then
+  log_info "[6.3] 跳过 xformers 安装，因为 INSTALL_XFORMERS 不是 'true'。"
+  exit 0
 fi
+
+log_info "[6.3] 启动 xformers 构建/安装过程 (目标 CUDA: ${TARGET_CUDA_ARCH})"
+log_detail "主仓库目录: ${MAIN_REPO_DIR}"
+log_detail "xformers 源码目录: ${XFORMERS_SRC_DIR}"
+log_detail "目标 PyTorch 版本: ${TORCH_VER}"
+log_detail "当前 Python: $(which python)"
+
+# --- 预先检查: xformers 是否已经安装且功能正常？ ---
+log_step "检查是否存在可用的 xformers 安装..."
+XFORMERS_CHECK_PASS=false
+XFORMERS_VERSION_INFO="N/A"
+if python -c "import xformers" >/dev/null 2>&1; then
+  log_detail "xformers 模块可导入。"
+  XFORMERS_VERSION_INFO=$(python -c "import xformers; print(xformers.__version__)" 2>/dev/null || echo "unknown")
+  # 检查核心 CUDA 操作是否可用 (如果需要，根据 xformers.info 的输出调整 grep 模式)
+  if python -m xformers.info | grep -E 'available.*(cutlass|flash)' > /dev/null 2>&1; then
+     log_info "现有 xformers 安装 (v${XFORMERS_VERSION_INFO}) 看起来功能正常，带有核心 CUDA 组件。"
+     XFORMERS_CHECK_PASS=true
+  else
+     log_warn "xformers 可导入 (v${XFORMERS_VERSION_INFO})，但核心 CUDA 组件可能缺失或不可用。继续构建。"
+     log_detail "xformers.info 的输出:"
+     python -m xformers.info || log_warn "无法执行 xformers.info"
+  fi
+else
+  log_warn "未找到 xformers 模块。继续安装。"
+fi
+
+if [[ "$XFORMERS_CHECK_PASS" == "true" ]]; then
+  log_info "[6.3] 跳过构建过程，因为已存在可用的 xformers (v${XFORMERS_VERSION_INFO})。"
+  # 可选: 在这里添加一个检查，以确保已安装的 xformers 的*版本*满足需求 (如果需要)
+  exit 0
+fi
+
+# --- 依赖检查和安装 ---
+
+# 1. PyTorch 检查
+log_step "检查 PyTorch 版本要求..."
+torch_ok=false
+vision_ok=false
+audio_ok=false
+current_torch_ver=$(pip show torch 2>/dev/null | awk '/^Version:/{print $2}')
+current_vision_ver=$(pip show torchvision 2>/dev/null | awk '/^Version:/{print $2}')
+current_audio_ver=$(pip show torchaudio 2>/dev/null | awk '/^Version:/{print $2}')
+
+[[ "$current_torch_ver" == "$TORCH_VER" ]] && torch_ok=true
+[[ "$current_vision_ver" == "$VISION_VER" ]] && vision_ok=true
+[[ "$current_audio_ver" == "$AUDIO_VER" ]] && audio_ok=true
+
+if [[ "$torch_ok" != "true" || "$vision_ok" != "true" || "$audio_ok" != "true" ]]; then
+  log_warn "未满足所需的 PyTorch 组件版本。"
+  log_detail "需要: torch==${TORCH_VER}, torchvision==${VISION_VER}, torchaudio==${AUDIO_VER}"
+  log_detail "找到:    torch==${current_torch_ver:-Not Installed}, torchvision==${current_vision_ver:-Not Installed}, torchaudio==${current_audio_ver:-Not Installed}"
+  log_detail "执行 PyTorch 安装命令:"
+  log_detail "$TORCH_INSTALL_CMD"
+  if ! $TORCH_INSTALL_CMD; then
+    log_error "PyTorch 安装失败。正在中止。"
+    exit 1
+  fi
+  log_info "PyTorch 安装/更新成功。"
+else
+  log_info "已满足所需的 PyTorch 版本。"
+fi
+
+# 2. Pip 构建依赖检查
+log_step "检查 Pip 构建依赖 (wheel, setuptools, cmake, ninja)..."
+MISSING_PIP_DEPS=()
+for pkg in wheel setuptools cmake ninja; do
+  if ! pip show "$pkg" > /dev/null 2>&1; then
+    log_warn "$pkg 未安装。"
+    MISSING_PIP_DEPS+=("$pkg")
+  else
+     log_detail "$pkg 找到: $(pip show "$pkg" | awk '/^Version:/{print $2}')"
+  fi
+done
+
+if [ ${#MISSING_PIP_DEPS[@]} -ne 0 ]; then
+  log_info "安装缺失的 pip 依赖: ${MISSING_PIP_DEPS[*]}"
+  if ! pip install --upgrade "${MISSING_PIP_DEPS[@]}" --no-cache-dir; then
+      log_error "未能安装 pip 依赖: ${MISSING_PIP_DEPS[*]}。正在中止。"
+      exit 1
+  fi
+  log_info "Pip 依赖安装成功。"
+else
+  log_info "所有必需的 pip 构建依赖都已存在。"
+fi
+# 确保 pip 本身是最新的
+log_detail "升级 pip..."
+pip install --upgrade pip --no-cache-dir
+
+# 3. 系统构建依赖检查 (g++, zip, unzip)
+log_step "检查系统构建依赖 (g++, zip, unzip)..."
+MISSING_SYSTEM_DEPS=()
+check_command g++ || MISSING_SYSTEM_DEPS+=("g++")
+check_command zip || MISSING_SYSTEM_DEPS+=("zip")
+check_command unzip || MISSING_SYSTEM_DEPS+=("unzip")
+
+# 通过 g++ 间接检查 build-essential
+if [[ ! " ${MISSING_SYSTEM_DEPS[@]} " =~ " g++ " ]]; then
+    log_detail "g++ 找到: $(g++ --version | head -n 1)"
+else
+    log_warn "g++ 未找到。可能缺少 build-essential 包。"
+fi
+if [[ ! " ${MISSING_SYSTEM_DEPS[@]} " =~ " zip " ]]; then
+    log_detail "zip 找到。" # Zip 版本输出很详细
+else
+    log_warn "zip 未找到。"
+fi
+if [[ ! " ${MISSING_SYSTEM_DEPS[@]} " =~ " unzip " ]]; then
+    log_detail "unzip 找到。" # unzip 版本输出很详细
+else
+    log_warn "unzip 未找到。"
+fi
+
+if [ ${#MISSING_SYSTEM_DEPS[@]} -ne 0 ]; then
+  log_warn "缺失的系统依赖: ${MISSING_SYSTEM_DEPS[*]}"
+  if [ "$(id -u)" -eq 0 ]; then
+    log_info "尝试以 root 用户安装缺失的系统依赖..."
+    export DEBIAN_FRONTEND=noninteractive
+    if apt-get update && apt-get install -y --no-install-recommends "${MISSING_SYSTEM_DEPS[@]}"; then
+       log_info "系统依赖安装成功。"
+    else
+       log_error "未能通过 apt-get 安装系统依赖。请手动安装它们。正在中止。"
+       exit 1
+    fi
+  else
+    log_error "以非 root 用户身份运行。请手动安装以下系统包: ${MISSING_SYSTEM_DEPS[*]}。正在中止。"
+    log_detail "示例命令 (Debian/Ubuntu): sudo apt-get install -y ${MISSING_SYSTEM_DEPS[*]}"
+    exit 1
+  fi
+else
+  log_info "所有必需的系统构建依赖都已存在。"
+fi
+
+# --- 源码准备 ---
+log_step "准备 xformers 源码..."
+if [ ! -d "$XFORMERS_SRC_DIR/.git" ]; then
+  log_detail "从 ${XFORMERS_REPO_URL} 克隆 xformers 仓库..."
+  # 如果不需要历史记录，使用 --depth 1 可以加快克隆速度，但如果构建特定标签/提交需要历史记录，请删除它
+  if ! git clone --recursive ${XFORMERS_REPO_URL} "$XFORMERS_SRC_DIR"; then
+     log_error "未能克隆 xformers 仓库。检查 URL 和网络连接。正在中止。"
+     exit 1
+  fi
+  log_info "仓库克隆成功。"
+else
+  log_detail "找到现有源码目录。更新仓库和子模块..."
+  cd "$XFORMERS_SRC_DIR" || { log_error "无法进入源码目录 ${XFORMERS_SRC_DIR}。正在中止。"; exit 1; }
+  # 存储本地更改 (如果有)，以避免 pull 冲突 (可选，谨慎使用)
+  # git stash push -m "Auto-stash before update"
+  git fetch origin
+  # 首先尝试快速 forward pull
+  if ! git pull --ff-only origin main; then # 假设 'main' 分支，如果需要，请调整
+      log_warn "快速 forward pull 失败。尝试合并 pull (可能出现冲突)。"
+      if ! git pull origin main; then
+          log_warn "Git pull 失败。构建将使用当前的本地版本继续。"
+          # 如果始终想要最新版本，覆盖更改，考虑在此处添加 'git reset --hard origin/main'
+      fi
+  fi
+  # 更新子模块
+  log_detail "更新子模块 (包括 flash-attention)..."
+  if ! git submodule update --init --recursive; then
+      log_error "未能更新子模块。检查 '.gitmodules' 和网络连接。正在中止。"
+      cd "$MAIN_REPO_DIR" # 确保在中止之前退出 src 目录
+      exit 1
+  fi
+  # 应用存储 (如果使用)
+  # git stash pop || log_warn "Could not pop stash"
+  cd "$MAIN_REPO_DIR" || { log_error "无法返回主目录 ${MAIN_REPO_DIR}。"; exit 1; } # 返回到原始目录
+  log_info "仓库和子模块已更新。"
+fi
+
+# --- 构建 xformers ---
+log_step "开始 xformers 构建过程..."
+cd "$XFORMERS_SRC_DIR" || { log_error "无法进入源码目录 ${XFORMERS_SRC_DIR} 进行构建。正在中止。"; exit 1; }
+
+# 设置构建环境变量
+export TORCH_CUDA_ARCH_LIST="${TARGET_CUDA_ARCH}"
+export MAX_BUILD_JOBS="${MAX_JOBS:-16}"  # 设置并行编译线程数为16，确保没有设置时默认使用16
+export XFORMERS_BUILD_CPP=1 
+export XFORMERS_FORCE_CUDA=1         # 强制 CUDA 构建，即使在构建时未检测到 GPU
+export XFORMERS_BUILD_TYPE="Release" # 构建优化的发布版本
+export XFORMERS_ENABLE_DEBUG_ASSERTIONS=0 # 在发布版本中禁用调试断言
+
+# 启用 Flash Attention 和 Triton 组件 (确保你的环境支持它们)
+export USE_FLASH_ATTENTION=1
+# export USE_TRITON=1 # 如果你安装了 triton 并且想使用它，请取消注释
+
+# 如果需要，设置 CMAKE 参数，例如，用于特定的 CUDA 架构确认
+export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=${TARGET_CUDA_ARCH//./}" # 格式如 '89'
+
+log_detail "构建环境变量已设置:"
+log_detail "  TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}"
+log_detail "  MAX_JOBS=${MAX_JOBS}"
+log_detail "  XFORMERS_FORCE_CUDA=${XFORMERS_FORCE_CUDA}"
+log_detail "  XFORMERS_BUILD_TYPE=${XFORMERS_BUILD_TYPE}"
+log_detail "  USE_FLASH_ATTENTION=${USE_FLASH_ATTENTION}"
+# log_detail "  USE_TRITON=${USE_TRITON}" # 如果启用了 USE_TRITON，请取消注释
+log_detail "  CMAKE_ARGS=${CMAKE_ARGS}"
+
+# 清理之前的构建工件 (可选，但建议用于干净的构建)
+# log_detail "清理之前的构建工件..."
+# python setup.py clean || log_warn "未能清理之前的构建工件。"
+# find . -name "*.so" -type f -delete
+# rm -rf build dist *.egg-info
+
+log_info "执行构建命令: pip install -v -e . --no-build-isolation"
+if ! pip install -v -e . --no-build-isolation; then
+    log_error "xformers 构建失败。"
+    log_detail "检查上面的详细构建日志，查找特定的 C++/CUDA 编译错误。"
+    log_detail "确保 CUDA 工具包、驱动程序和 PyTorch 版本与目标架构 (${TARGET_CUDA_ARCH}) 兼容。"
+    python -m pip list | grep -E 'torch|xformers|ninja|wheel|cmake|setuptools' # 显示相关的包版本
+    build_success=false
+else
+    log_info "xformers 构建成功。"
+    build_success=true
+fi
+
+# 取消设置构建环境变量
+unset TORCH_CUDA_ARCH_LIST
+unset MAX_JOBS
+unset XFORMERS_FORCE_CUDA
+unset XFORMERS_BUILD_TYPE
+unset XFORMERS_ENABLE_DEBUG_ASSERTIONS
+unset USE_FLASH_ATTENTION
+unset CMAKE_ARGS
+
+cd "$MAIN_REPO_DIR" || log_warn "无法返回主目录 ${MAIN_REPO_DIR}。"
+
+# --- 构建后验证 ---
+if [[ "$build_success" != "true" ]]; then
+    log_error "[6.3] xformers 安装过程在构建期间失败。"
+    exit 1
+fi
+
+log_step "验证安装..."
+log_detail "运行 torch.utils.collect_env..."
+python -m torch.utils.collect_env > "${MAIN_REPO_DIR}/torch_env_$(date +%Y%m%d_%H%M%S).txt" || log_warn "未能收集 torch 环境信息。"
+
+log_detail "运行 xformers.info..."
+XFORMERS_INFO_OUTPUT_FILE="${MAIN_REPO_DIR}/xformers_info_$(date +%Y%m%d_%H%M%S).txt"
+if python -m xformers.info > "$XFORMERS_INFO_OUTPUT_FILE"; then
+  log_info "xformers.info 执行成功。输出保存到 ${XFORMERS_INFO_OUTPUT_FILE}"
+  if grep -q "unavailable" "$XFORMERS_INFO_OUTPUT_FILE"; then
+    log_warn "一些 xformers 组件报告为不可用:"
+    grep "unavailable" "$XFORMERS_INFO_OUTPUT_FILE" | sed 's/^/    - /'
+    log_warn "潜在原因: 缺少运行时依赖项，特定内核 (如 Flash Attention) 的硬件/CUDA 版本不兼容，或者之前未捕获的构建问题。"
+    log_warn "查看 ${XFORMERS_INFO_OUTPUT_FILE} 获取详细信息。"
+  else
+    log_info "检测到的所有 xformers 组件似乎都可用。"
+  fi
+else
+  log_error "未能执行 'python -m xformers.info'。安装可能不完整或已损坏。"
+  log_error "[6.3] xformers 安装过程完成，存在潜在问题。"
+  exit 1
+fi
+
+log_info "[6.3] xformers 安装过程成功完成。"
+log_detail "最终 Python 可执行文件: $(which python)"
+log_detail "xformers 源码位置: $(realpath "$XFORMERS_SRC_DIR" 2>/dev/null || echo $XFORMERS_SRC_DIR)" # 如果目录被删除，realpath 可能会失败
 
 # ==================================================
 # 🧠 [6.4] TensorFlow 编译（maludwig 分支 + CUDA 12.8.1 + clang）
@@ -933,9 +1102,8 @@ except: print('🧩 xformers: 未安装')
 "
 
 # ==================================================
-# 🔧 拼接启动参数并显示（ALL_ARGS）
-# ==================================================
-ALL_ARGS="$COMMANDLINE_ARGS $ARGS"
+# 拼接启动参数（COMMANDLINE_ARGS + ARGS）
+ALL_ARGS="$ARGS"
 echo "  - 启动参数 (ALL_ARGS): $ALL_ARGS"
 
 # 🧭 确保在 WebUI 项目目录下
@@ -951,25 +1119,11 @@ if [[ ! -f "launch.py" ]]; then
     exit 1
 fi
 
+# ==================================================
 # 🧑‍💻 强制使用 webui 用户执行 launch.py（除非明确设置 SKIP_USER_SWITCH=true）
 if [[ "$(id -u)" == "0" ]]; then
-  if [[ "$SKIP_USER_SWITCH" == "true" ]]; then
-    echo "⚠️ 已设置 SKIP_USER_SWITCH=true，将以 root 启动（仅建议调试）"
-    exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
-  else
-    echo "👤 当前为 root，将尝试使用 sudo 切换至 webui 用户运行 launch.py"
-    if command -v /usr/bin/sudo &>/dev/null; then
-      /usr/bin/sudo -u webui --preserve-env=PATH,LD_LIBRARY_PATH,CUDA_HOME \
-        "$VENV_DIR/bin/python" launch.py $ALL_ARGS || {
-          echo "❌ sudo 执行失败，WebUI 启动中止"
-          exit 1
-        }
-    else
-      echo "❌ sudo 未安装，无法切换用户"
-      echo "📌 请检查 Dockerfile 或设置 SKIP_USER_SWITCH=true 以跳过切换"
-      exit 1
-    fi
-  fi
+  echo "⚠️ 当前为 root，但不再使用 sudo 切换用户。"
+  exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
 else
   echo "👤 当前非 root，直接运行 launch.py"
   exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
