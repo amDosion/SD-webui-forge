@@ -26,6 +26,7 @@ RUN echo "🔧 [2.1] 安装 Python 3.11 及系统依赖..." && \
         libglib2.0-0 libsm6 libxrender1 libxext6 \
         xvfb build-essential \
         libgoogle-perftools-dev \
+        sentencepiece \
         libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libtiff-dev \
         libopenblas-base libopenmpi-dev \
         apt-transport-https htop nano bsdmainutils \
@@ -210,17 +211,11 @@ RUN echo "🔧 [3.3] 安装 Bazelisk..." && \
     echo "✅ [3.3] Bazelisk 安装完成"
 
 # ================================================================
-# 👤 4.1 安装 sudo 并创建非 root 用户 webui（附带验证）
+# 👤 4.1 创建非 root 用户 webui
 # ================================================================
-RUN echo "🔧 [4.1] 安装 sudo 并创建非 root 用户 webui..." && \
-    apt-get update && \
-    apt-get install -y sudo && \
-    command -v sudo && echo "✅ sudo 安装成功" || (echo "❌ sudo 安装失败" && exit 1) && \
+RUN echo "🔧 [4.1] 创建非 root 用户 webui..." && \
     useradd -m webui && \
-    id webui && echo "✅ 用户 webui 创建成功" || (echo "❌ 用户创建失败" && exit 1) && \
-    echo "webui ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/webui && \
-    chmod 440 /etc/sudoers.d/webui && \
-    echo "✅ [4.1] sudo 与 webui 用户设置完成"
+    echo "✅ [4.1] 用户 webui 创建完成"
 
 # ================================================================
 # 📂 5.1 设置工作目录并授权脚本
@@ -232,10 +227,12 @@ RUN chmod +x /app/run.sh && \
     echo "✅ [5.1] 脚本授权完成"
 
 # ================================================================
-# 👤 5.2 模拟切换至 webui 用户（保留日志输出，不切换用户）
+# 👤 5.2 切换至 webui 用户并设置工作目录
 # ================================================================
-RUN echo "✅ [5.2] 当前用户: root (未切换)" && \
-    echo "✅ [5.2] 当前工作目录: /app/webui（即将使用）"
+USER webui
+WORKDIR /app/webui
+RUN echo "✅ [5.2] 当前用户: $(whoami)" && \
+    echo "✅ [5.2] 当前工作目录: $(pwd)"
 
 # ================================================================
 # 🔎 6.1 环境基础自检
