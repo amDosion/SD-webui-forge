@@ -19,10 +19,9 @@ mkdir -p "$(dirname "$LOG_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "=================================================="
-echo "🚀 [0] 启动脚本 - Stable Diffusion WebUI (CUDA 12.8 / PyTorch Nightly)"
+echo "🚀 [0] 启动脚本 - Stable Diffusion WebUI (CUDA 12.6)"
 echo "=================================================="
 echo "⏳ 开始时间: $(date)"
-echo "🔧 使用 PyTorch Nightly (Preview) builds 构建，可能存在不稳定风险。"
 echo "🔧 xformers 已在 Docker 构建时从源码编译 (目标架构: 8.9 for RTX 4090)。"
 
 # ==================================================
@@ -125,9 +124,9 @@ GIT_MIRROR_URL="https://gitcode.net" # 使用 https
 
 # TCMalloc 和 Pip 索引设置
 export NO_TCMALLOC=1
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu126"
 echo "  - 禁用的 TCMalloc (NO_TCMALLOC): ${NO_TCMALLOC}"
-echo "  - pip 额外索引 (PIP_EXTRA_INDEX_URL): ${PIP_EXTRA_INDEX_URL} (用于 PyTorch Nightly cu128)"
+echo "  - pip 额外索引 (PIP_EXTRA_INDEX_URL): ${PIP_EXTRA_INDEX_URL} (用于 PyTorch cu126)"
 
 # ==================================================
 # 设置 Git 源路径
@@ -269,7 +268,7 @@ if [ "$UI" = "forge" ]; then
 
     INSTALL_TORCH="${INSTALL_TORCH:-true}"
     if [[ "$INSTALL_TORCH" == "true" ]]; then
-        TORCH_COMMAND="pip install --pre torch==2.8.0.dev20250326+cu128 torchvision==0.22.0.dev20250326+cu128 torchaudio==2.6.0.dev20250326+cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu128"
+        TORCH_COMMAND="pip install torch==2.6.0+cu126 torchvision==0.21.0+cu126 torchaudio==2.6.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126"
         echo "  - 安装 PyTorch Nightly: $TORCH_COMMAND"
         $TORCH_COMMAND && echo "    ✅ PyTorch 安装成功" || echo "    ❌ PyTorch 安装失败"
     else
@@ -335,7 +334,7 @@ else
             [[ -z "$clean_line" ]] && continue
 
             echo "    - 安装: $clean_line"
-            pip install --pre "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+            pip install "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
                 | tee -a "$LOG_FILE" \
                 | sed 's/^Successfully installed/      ✅ 成功安装/' \
                 | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
@@ -362,10 +361,10 @@ XFORMERS_REPO_URL="https://github.com/amDosion/xformers.git" # 官方仓库 - �
 
 # 目标 PyTorch 版本 (CUDA 12.8 的 Nightly 版本示例)
 # 注意: 确保这些与你的设置所需的*精确*版本匹配。
-TORCH_VER="2.8.0.dev20250326+cu128"
-VISION_VER="0.22.0.dev20250326+cu128"
-AUDIO_VER="2.6.0.dev20250326+cu128"
-TORCH_INSTALL_CMD="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/nightly/cu128 --no-cache-dir"
+TORCH_VER="2.6.0+cu126"
+VISION_VER="0.21.0+cu126"
+AUDIO_VER="2.6.0+cu126"
+TORCH_INSTALL_CMD="pip install torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/cu126 --no-cache-dir"
 
 # 构建配置
 TARGET_CUDA_ARCH="${TORCH_CUDA_ARCH_LIST:-8.9}" # 默认为 8.9 (例如，RTX 3090/4090)，如果外部未设置
