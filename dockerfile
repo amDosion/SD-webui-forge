@@ -8,6 +8,7 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 # ================================================================
 ENV TZ=Asia/Shanghai
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
 RUN echo "🔧 [1.1] 设置系统时区为 ${TZ}..." && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
@@ -247,4 +248,4 @@ RUN echo "🔎 [6.1] 开始环境基础自检..." && \
 # ================================================================
 # 🚀 7.1 设置容器启动入口（延迟切换用户在 run.sh 内完成）
 # ================================================================
-ENTRYPOINT ["/app/run.sh"]
+CMD ["./run.sh"]
