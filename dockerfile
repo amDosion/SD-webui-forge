@@ -1,7 +1,7 @@
 # ================================================================
-# 📦 0.1 基础镜像：CUDA 12.8.1 + cuDNN + Ubuntu 22.04
+# 📦 0.1 基础镜像：CUDA 12.6.1 + cuDNN + Ubuntu 22.04
 # ================================================================
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.1-cudnn-devel-ubuntu22.04
 
 # ================================================================
 # 🕒 1.1 设置系统时区（上海）
@@ -181,10 +181,10 @@ RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
 RUN echo "🔧 [3.1] 安装 PyTorch Nightly..." && \
     python3.11 -m pip install --upgrade pip && \
     python3.11 -m pip install --pre \
-        torch==2.6.0 \
-        torchvision==0.21.0 \
-        torchaudio==2.6.0 \
-        torch-tensorrt==2.6.0 \
+        torch==2.6.0+cu126 \
+        torchvision==0.21.0+cu126 \
+        torchaudio==2.6.0+cu126 \
+        torch-tensorrt==2.6.0+cu126 \
         --extra-index-url https://download.pytorch.org/whl/cu126 \
         --no-cache-dir && \
     rm -rf /root/.cache /tmp/* ~/.cache && \
