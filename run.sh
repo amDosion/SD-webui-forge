@@ -243,34 +243,6 @@ fi
 echo "⚠️ [5.5] 正在为当前目录 ($TARGET_DIR) 设置递归 777 权限。这在生产环境中不推荐！"
 chmod -R 777 . || echo "⚠️ chmod 777 失败，后续步骤可能因权限问题失败。"
 
-# ==================================================
-# Python 虚拟环境设置与依赖安装
-# ==================================================
-VENV_DIR="venv" # 定义虚拟环境目录名
-echo "🐍 [6] 设置 Python 虚拟环境 ($VENV_DIR)..."
-
-# 检查虚拟环境是否已正确创建
-if [ ! -x "$VENV_DIR/bin/activate" ]; then
-  echo "  - 虚拟环境不存在或未正确创建，现在使用 python3.11 创建..."
-  # 移除可能存在的无效目录
-  rm -rf "$VENV_DIR"
-  # 使用明确的 Python 版本创建
-  python3.11 -m venv "$VENV_DIR"
-  echo "  - 虚拟环境创建成功。"
-else
-  echo "  - 虚拟环境已存在于 $VENV_DIR。"
-fi
-
-echo "  - 激活虚拟环境..."
-# 激活虚拟环境
-# shellcheck source=/dev/null
-source "$VENV_DIR/bin/activate"
-
-# 确认 venv 内的 Python 和 pip
-echo "  - 当前 Python: $(which python) (应指向 $VENV_DIR/bin/python)"
-echo "  - 当前 pip: $(which pip) (应指向 $VENV_DIR/bin/pip)"
-
-
 echo "📥 [6.1] 升级 venv 内的 pip 到最新版本..."
 pip install --upgrade pip | tee -a "$LOG_FILE" # 同时输出到控制台和日志
 
