@@ -1075,27 +1075,6 @@ fi
 echo "🚀 [11] 所有准备工作完成，开始启动 WebUI..."
 echo "  - UI Type: ${UI}"
 
-# 🔍 打印当前 Python 解释器与依赖版本信息
-echo "📋 [11.1] 当前 Python 环境信息:"
-"$VENV_DIR/bin/python" -c "
-import sys
-print(f'🧠 Python: {sys.version}')
-print(f'🧭 Python Path: {sys.executable}')
-try:
-    import torch
-    print(f'🔥 torch: {torch.__version__}, CUDA: {torch.version.cuda}')
-except: print('🔥 torch: 未安装')
-try:
-    import tensorflow as tf
-    devices = tf.config.list_physical_devices('GPU')
-    print(f'🧠 tensorflow: {tf.__version__}, GPU 可用: {len(devices)}')
-except: print('🧠 tensorflow: 未安装')
-try:
-    import xformers
-    print(f'🧩 xformers: {xformers.__version__}')
-except: print('🧩 xformers: 未安装')
-"
-
 # ==================================================
 # 拼接启动参数（COMMANDLINE_ARGS + ARGS）
 ALL_ARGS="$ARGS"
