@@ -19,9 +19,10 @@ mkdir -p "$(dirname "$LOG_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "=================================================="
-echo "🚀 [0] 启动脚本 - Stable Diffusion WebUI (CUDA 12.6)"
+echo "🚀 [0] 启动脚本 - Stable Diffusion WebUI (CUDA 12.8 / PyTorch Nightly)"
 echo "=================================================="
 echo "⏳ 开始时间: $(date)"
+echo "🔧 使用 PyTorch Nightly (Preview) builds 构建，可能存在不稳定风险。"
 echo "🔧 xformers 已在 Docker 构建时从源码编译 (目标架构: 8.9 for RTX 4090)。"
 
 # ==================================================
@@ -74,7 +75,7 @@ echo "🔧 [1] 解析 UI 与 ARGS 环境变量..."
 # UI 类型，默认为 forge
 UI="${UI:-forge}"
 # 传递给 webui.sh 的参数，默认包含 --xformers
-ARGS="${ARGS:---xformers --api --listen --enable-insecure-extension-access --theme dark}"
+ARGS="${ARGS:--xformers --api --listen --enable-insecure-extension-access --theme dark}"
 echo "  - UI 类型 (UI): ${UI}"
 echo "  - WebUI 启动参数 (ARGS): ${ARGS}"
 
@@ -124,9 +125,9 @@ GIT_MIRROR_URL="https://gitcode.net" # 使用 https
 
 # TCMalloc 和 Pip 索引设置
 export NO_TCMALLOC=1
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu126"
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
 echo "  - 禁用的 TCMalloc (NO_TCMALLOC): ${NO_TCMALLOC}"
-echo "  - pip 额外索引 (PIP_EXTRA_INDEX_URL): ${PIP_EXTRA_INDEX_URL} (用于 PyTorch cu126)"
+echo "  - pip 额外索引 (PIP_EXTRA_INDEX_URL): ${PIP_EXTRA_INDEX_URL} (用于 PyTorch Nightly cu128)"
 
 # ==================================================
 # 设置 Git 源路径
@@ -184,37 +185,64 @@ echo "✅ 仓库操作完成"
 # 切换到 WebUI 目标目录进行后续操作
 cd "$TARGET_DIR" || { echo "❌ 无法切换到 WebUI 目标目录 $TARGET_DIR"; exit 1; }
 
-# 创建 repositories 目录
-echo "  - 创建 repositories 目录..."
-mkdir -p repositories
+# 赋予启动脚本执行权限
+if [ -f "$TARGET_DIR/webui.sh" ]; then
+  chmod +x "$TARGET_DIR/webui.sh"
+  echo "  - 已赋予 $TARGET_DIR/webui.sh 执行权限"
+else
+  echo "⚠️ 未在克隆的仓库 $TARGET_DIR 中找到预期的启动脚本 webui.sh"
+  exit 1  # 如果找不到启动脚本，可以选择退出
+fi
 
-# 克隆 stable-diffusion-webui-assets 仓库
-echo "  - 克隆 stable-diffusion-webui-assets 仓库..."
-git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui-assets.git "repositories/stable-diffusion-webui-assets" || {
-  echo "❌ 克隆 stable-diffusion-webui-assets 仓库失败"
-  exit 1
-}
+# 赋予启动脚本执行权限
+if [ -f "$TARGET_DIR/launch.py" ]; then
+  chmod +x "$TARGET_DIR/launch.py"
+  echo "  - 已赋予 $TARGET_DIR/launch.py 执行权限"
+else
+  echo "⚠️ 未在克隆的仓库 $TARGET_DIR 中找到预期的启动脚本 launch.py"
+  exit 1  # 如果找不到启动脚本，可以选择退出
+fi
 
-# 克隆 huggingface_guess 仓库
-echo "  - 克隆 huggingface_guess 仓库..."
-git clone https://github.com/lllyasviel/huggingface_guess.git "repositories/huggingface_guess" || {
-  echo "❌ 克隆 huggingface_guess 仓库失败"
-  exit 1
-}
 
-# 克隆 BLIP 仓库
-echo "  - 克隆 BLIP 仓库..."
-git clone https://github.com/salesforce/BLIP.git "repositories/BLIP" || {
-  echo "❌ 克隆 BLIP 仓库失败"
-  exit 1
-}
 
-# 克隆 google_blockly_prototypes 仓库
-echo "  - 克隆 google_blockly_prototypes 仓库..."
-git clone https://github.com/lllyasviel/google_blockly_prototypes.git "repositories/google_blockly_prototypes" || {
-  echo "❌ 克隆 google_blockly_prototypes 仓库失败"
-  exit 1
-}
+# 创建 repositories 目录（如果不存在的话）
+mkdir -p repositories || echo "⚠️ 创建 repositories 目录失败，请检查权限。"
+
+# 克隆 stable-diffusion-webui-assets 仓库（如果尚未克隆）
+REPO_ASSETS_DIR="repositories/stable-diffusion-webui-assets"
+if [ ! -d "$REPO_ASSETS_DIR" ]; then
+  echo "🚀 克隆 stable-diffusion-webui-assets 仓库..."
+  git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui-assets.git "$REPO_ASSETS_DIR" || echo "❌ 克隆 stable-diffusion-webui-assets 仓库失败"
+else
+  echo "✅ stable-diffusion-webui-assets 仓库已经存在，跳过克隆。"
+fi
+
+# 克隆 huggingface_guess 仓库（如果尚未克隆）
+REPO_HUGGINGFACE_GUESS_DIR="repositories/huggingface_guess"
+if [ ! -d "$REPO_HUGGINGFACE_GUESS_DIR" ]; then
+  echo "🚀 克隆 huggingface_guess 仓库..."
+  git clone https://github.com/lllyasviel/huggingface_guess.git "$REPO_HUGGINGFACE_GUESS_DIR" || echo "❌ 克隆 huggingface_guess 仓库失败"
+else
+  echo "✅ huggingface_guess 仓库已经存在，跳过克隆。"
+fi
+
+# 克隆 BLIP 仓库（如果尚未克隆）
+REPO_BLIP_DIR="repositories/BLIP"
+if [ ! -d "$REPO_BLIP_DIR" ]; then
+  echo "🚀 克隆 BLIP 仓库..."
+  git clone https://github.com/salesforce/BLIP.git "$REPO_BLIP_DIR" || echo "❌ 克隆 BLIP 仓库失败"
+else
+  echo "✅ BLIP 仓库已经存在，跳过克隆。"
+fi
+
+# 克隆 google_blockly_prototypes 仓库（如果尚未克隆）
+REPO_GOOGLE_BLOCKLY_DIR="repositories/google_blockly_prototypes"
+if [ ! -d "$REPO_GOOGLE_BLOCKLY_DIR" ]; then
+  echo "🚀 克隆 google_blockly_prototypes 仓库..."
+  git clone https://github.com/lllyasviel/google_blockly_prototypes.git "$REPO_GOOGLE_BLOCKLY_DIR" || echo "❌ 克隆 google_blockly_prototypes 仓库失败"
+else
+  echo "✅ google_blockly_prototypes 仓库已经存在，跳过克隆。"
+fi
 
 # ==================================================
 # requirements 文件检查 (仅非 Forge UI)
@@ -242,6 +270,33 @@ fi
 echo "⚠️ [5.5] 正在为当前目录 ($TARGET_DIR) 设置递归 777 权限。这在生产环境中不推荐！"
 chmod -R 777 . || echo "⚠️ chmod 777 失败，后续步骤可能因权限问题失败。"
 
+# ==================================================
+# Python 虚拟环境设置与依赖安装
+# ==================================================
+VENV_DIR="venv" # 定义虚拟环境目录名
+echo "🐍 [6] 设置 Python 虚拟环境 ($VENV_DIR)..."
+
+# 检查虚拟环境是否已正确创建
+if [ ! -x "$VENV_DIR/bin/activate" ]; then
+  echo "  - 虚拟环境不存在或未正确创建，现在使用 python3.11 创建..."
+  # 移除可能存在的无效目录
+  rm -rf "$VENV_DIR"
+  # 使用明确的 Python 版本创建
+  python3.11 -m venv "$VENV_DIR"
+  echo "  - 虚拟环境创建成功。"
+else
+  echo "  - 虚拟环境已存在于 $VENV_DIR。"
+fi
+
+echo "  - 激活虚拟环境..."
+# 激活虚拟环境
+# shellcheck source=/dev/null
+source "$VENV_DIR/bin/activate"
+
+# 确认 venv 内的 Python 和 pip
+echo "  - 当前 Python: $(which python) (应指向 $VENV_DIR/bin/python)"
+echo "  - 当前 pip: $(which pip) (应指向 $VENV_DIR/bin/pip)"
+
 echo "📥 [6.1] 升级 venv 内的 pip 到最新版本..."
 pip install --upgrade pip | tee -a "$LOG_FILE" # 同时输出到控制台和日志
 
@@ -257,7 +312,7 @@ echo "📥 [6.2] 安装 WebUI 核心依赖 (基于 UI 类型)..."
 # ==================================================
 # 🔧 强制跳过 Forge UI 内部依赖检查（通过环境变量）
 # ==================================================
-export COMMANDLINE_ARGS="--skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
+export COMMANDLINE_ARGS="--no-half-vae --skip-install --skip-prepare-environment --skip-python-version-check --skip-torch-cuda-test"
 echo "  - 已设置 COMMANDLINE_ARGS: $COMMANDLINE_ARGS"
 
 # ==================================================
@@ -268,7 +323,7 @@ if [ "$UI" = "forge" ]; then
 
     INSTALL_TORCH="${INSTALL_TORCH:-true}"
     if [[ "$INSTALL_TORCH" == "true" ]]; then
-        TORCH_COMMAND="pip install torch==2.6.0+cu126 torchvision==0.21.0+cu126 torchaudio==2.6.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126"
+        TORCH_COMMAND="pip install --pre torch==2.8.0.dev20250326+cu128 torchvision==0.22.0.dev20250326+cu128 torchaudio==2.6.0.dev20250326+cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu128"
         echo "  - 安装 PyTorch Nightly: $TORCH_COMMAND"
         $TORCH_COMMAND && echo "    ✅ PyTorch 安装成功" || echo "    ❌ PyTorch 安装失败"
     else
@@ -334,7 +389,7 @@ else
             [[ -z "$clean_line" ]] && continue
 
             echo "    - 安装: $clean_line"
-            pip install "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
+            pip install --pre "$clean_line" --no-cache-dir --extra-index-url "$PIP_EXTRA_INDEX_URL" 2>&1 \
                 | tee -a "$LOG_FILE" \
                 | sed 's/^Successfully installed/      ✅ 成功安装/' \
                 | sed 's/^Requirement already satisfied/      ⏩ 需求已满足/'
@@ -350,6 +405,29 @@ else
     fi
 fi
 
+# 自动检查并安装缺失的库
+check_and_install_package() {
+    local package=$1
+    if ! python -c "import $package" >/dev/null 2>&1; then
+        echo "❌ 缺少库: $package，尝试安装..."
+        pip install "$package" --no-cache-dir && echo "✅ 库安装成功: $package" || echo "❌ 库安装失败: $package"
+    else
+        echo "✅ 库已安装: $package"
+    fi
+}
+
+# 安装缺失的依赖
+check_and_install_package "sentencepiece"
+check_and_install_package "send2trash"
+check_and_install_package "beautifulsoup4"
+check_and_install_package "ZipUnicode"
+check_and_install_package "litelama"
+check_and_install_package "timm"
+check_and_install_package "insightface"
+check_and_install_package "huggingface_guess"
+check_and_install_package "repositories"
+check_and_install_package "python-dotenv"
+
 # ==================================================
 # 🔧 [6.3] Ninja + xformers 编译安装（适配 CUDA 12.8）
 # ==================================================
@@ -361,10 +439,10 @@ XFORMERS_REPO_URL="https://github.com/amDosion/xformers.git" # 官方仓库 - �
 
 # 目标 PyTorch 版本 (CUDA 12.8 的 Nightly 版本示例)
 # 注意: 确保这些与你的设置所需的*精确*版本匹配。
-TORCH_VER="2.6.0+cu126"
-VISION_VER="0.21.0+cu126"
-AUDIO_VER="2.6.0+cu126"
-TORCH_INSTALL_CMD="pip install torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/cu126 --no-cache-dir"
+TORCH_VER="2.8.0.dev20250326+cu128"
+VISION_VER="0.22.0.dev20250326+cu128"
+AUDIO_VER="2.6.0.dev20250326+cu128"
+TORCH_INSTALL_CMD="pip install --pre torch==${TORCH_VER} torchvision==${VISION_VER} torchaudio==${AUDIO_VER} --extra-index-url https://download.pytorch.org/whl/nightly/cu128 --no-cache-dir"
 
 # 构建配置
 TARGET_CUDA_ARCH="${TORCH_CUDA_ARCH_LIST:-8.9}" # 默认为 8.9 (例如，RTX 3090/4090)，如果外部未设置
@@ -778,6 +856,13 @@ EOF
   fi
 fi
 
+deactivate
+
+# ---------------------------------------------------
+# 安装完成日志
+# ---------------------------------------------------
+echo "📦 venv 安装完成 ✅"
+
 # ==================================================
 # 创建 WebUI 相关目录
 # ==================================================
@@ -1088,24 +1173,15 @@ if [[ "$CURRENT_DIR" != "$TARGET_DIR" ]]; then
     cd "$TARGET_DIR" || { echo "❌ 无法进入 $TARGET_DIR"; exit 1; }
 fi
 
-# ✅ 检查 webui.py 是否存在
-if [[ ! -f "webui.py" ]]; then
-    echo "❌ 未找到 webui.py，请确认路径正确：$(pwd)"
-    exit 1
-fi
-
-# ==================================================
-# 🧑‍💻 强制使用 webui 用户执行 webui.py（除非明确设置 SKIP_USER_SWITCH=true）
-if [[ "$(id -u)" == "0" ]]; then
-  echo "⚠️ 当前为 root，但不再使用 sudo 切换用户。"
-  # 使用全局 Python 运行 webui.py
-  exec "python" webui.py $ALL_ARGS
+# 确保 webui.py 存在并赋予执行权限
+if [ -f "$TARGET_DIR/webui.py" ]; then
+  chmod +x "$TARGET_DIR/webui.py"
+  echo "  - 已赋予 $TARGET_DIR/webui.py 执行权限"
 else
-  echo "👤 当前非 root，直接运行 webui.py"
-  # 使用全局 Python 运行 webui.py
-  exec "python" webui.py $ALL_ARGS
+  echo "⚠️ 未在克隆的仓库 $TARGET_DIR 中找到预期的启动脚本 webui.py"
+  exit 1  # 如果找不到启动脚本，可以选择退出
 fi
 
-# 万一 exec 失败
-echo "❌ webui.py 启动失败"
-exit 1
+# 启动 WebUI 使用 webui.py
+echo "🚀 [11] 启动 WebUI (通过 webui.py)..."
+python3 "$TARGET_DIR/webui.py" $ALL_ARGS
