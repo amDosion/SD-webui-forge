@@ -1070,7 +1070,7 @@ else
 fi
 
 # ==================================================
-# 🔥 [11] 启动 WebUI（使用 venv 内的 Python）
+# 🔥 [11] 启动 WebUI（使用全局 Python 环境）
 # ==================================================
 echo "🚀 [11] 所有准备工作完成，开始启动 WebUI..."
 echo "  - UI Type: ${UI}"
@@ -1097,10 +1097,12 @@ fi
 # 🧑‍💻 强制使用 webui 用户执行 webui.py（除非明确设置 SKIP_USER_SWITCH=true）
 if [[ "$(id -u)" == "0" ]]; then
   echo "⚠️ 当前为 root，但不再使用 sudo 切换用户。"
-  exec "$VENV_DIR/bin/python" webui.py $ALL_ARGS
+  # 使用全局 Python 运行 webui.py
+  exec "python" webui.py $ALL_ARGS
 else
   echo "👤 当前非 root，直接运行 webui.py"
-  exec "$VENV_DIR/bin/python" webui.py $ALL_ARGS
+  # 使用全局 Python 运行 webui.py
+  exec "python" webui.py $ALL_ARGS
 fi
 
 # 万一 exec 失败
