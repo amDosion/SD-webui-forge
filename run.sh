@@ -194,6 +194,31 @@ echo "✅ 仓库操作完成"
 # 切换到 WebUI 目标目录进行后续操作
 cd "$TARGET_DIR" || { echo "❌ 无法切换到 WebUI 目标目录 $TARGET_DIR"; exit 1; }
 
+# 创建 repositories 目录
+echo "  - 创建 repositories 目录..."
+mkdir -p repositories
+
+# 克隆 stable-diffusion-webui-assets 仓库
+echo "  - 克隆 stable-diffusion-webui-assets 仓库..."
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui-assets.git "repositories/stable-diffusion-webui-assets" || {
+  echo "❌ 克隆 stable-diffusion-webui-assets 仓库失败"
+  exit 1
+}
+
+# 克隆 huggingface_guess 仓库
+echo "  - 克隆 huggingface_guess 仓库..."
+git clone https://github.com/lllyasviel/huggingface_guess.git "repositories/huggingface_guess" || {
+  echo "❌ 克隆 huggingface_guess 仓库失败"
+  exit 1
+}
+
+# 克隆 BLIP 仓库
+echo "  - 克隆 BLIP 仓库..."
+git clone https://github.com/salesforce/BLIP.git "repositories/BLIP" || {
+  echo "❌ 克隆 BLIP 仓库失败"
+  exit 1
+}
+
 # ==================================================
 # requirements 文件检查 (仅非 Forge UI)
 # ==================================================
