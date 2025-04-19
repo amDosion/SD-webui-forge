@@ -41,15 +41,6 @@ fi
 # ==================================================
 # 🔒 [6.2] sudo 安装检查（确保 root 可切换为 webui 用户）
 # ==================================================
-echo "🔒 [6.2] 检查 sudo 是否已正确安装..."
-if command -v sudo &>/dev/null; then
-  echo "✅ [6.2] sudo 已安装: $(sudo --version | head -n 1)"
-else
-  echo "❌ [6.2] sudo 未安装，请检查 Dockerfile 中是否已正确安装 sudo"
-  echo "📌 建议在 Dockerfile 中加入：apt-get install -y sudo"
-  exit 1
-fi
-
 # pip 检查 (通过 python -m pip 调用)
 if python3.11 -m pip --version &>/dev/null; then
   echo "✅ pip for Python 3.11 版本: $(python3.11 -m pip --version)"
