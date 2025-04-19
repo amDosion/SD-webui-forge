@@ -181,11 +181,11 @@ RUN echo "🔍 [2.6] 检查 CUDA / cuDNN / NCCL 安装状态..." && \
 RUN echo "🔧 [3.1] 安装 PyTorch Nightly..." && \
     python3.11 -m pip install --upgrade pip && \
     python3.11 -m pip install --pre \
-        torch==2.8.0.dev20250326+cu128 \
-        torchvision==0.22.0.dev20250326+cu128 \
-        torchaudio==2.6.0.dev20250326+cu128 \
-        torch-tensorrt==2.7.0.dev20250326+cu128 \
-        --extra-index-url https://download.pytorch.org/whl/nightly/cu128 \
+        torch==2.6.0 \
+        torchvision==0.21.0 \
+        torchaudio==2.6.0 \
+        torch-tensorrt==2.6.0 \
+        --extra-index-url https://download.pytorch.org/whl/cu126 \
         --no-cache-dir && \
     rm -rf /root/.cache /tmp/* ~/.cache && \
     echo "✅ [3.1] PyTorch 安装完成"
