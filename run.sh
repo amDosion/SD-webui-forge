@@ -1136,22 +1136,22 @@ if [[ "$CURRENT_DIR" != "$TARGET_DIR" ]]; then
     cd "$TARGET_DIR" || { echo "❌ 无法进入 $TARGET_DIR"; exit 1; }
 fi
 
-# ✅ 检查 launch.py 是否存在
-if [[ ! -f "launch.py" ]]; then
-    echo "❌ 未找到 launch.py，请确认路径正确：$(pwd)"
+# ✅ 检查 webui.py 是否存在
+if [[ ! -f "webui.py" ]]; then
+    echo "❌ 未找到 webui.py，请确认路径正确：$(pwd)"
     exit 1
 fi
 
 # ==================================================
-# 🧑‍💻 强制使用 webui 用户执行 launch.py（除非明确设置 SKIP_USER_SWITCH=true）
+# 🧑‍💻 强制使用 webui 用户执行 webui.py（除非明确设置 SKIP_USER_SWITCH=true）
 if [[ "$(id -u)" == "0" ]]; then
   echo "⚠️ 当前为 root，但不再使用 sudo 切换用户。"
-  exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+  exec "$VENV_DIR/bin/python" webui.py $ALL_ARGS
 else
-  echo "👤 当前非 root，直接运行 launch.py"
-  exec "$VENV_DIR/bin/python" launch.py $ALL_ARGS
+  echo "👤 当前非 root，直接运行 webui.py"
+  exec "$VENV_DIR/bin/python" webui.py $ALL_ARGS
 fi
 
 # 万一 exec 失败
-echo "❌ launch.py 启动失败"
+echo "❌ webui.py 启动失败"
 exit 1
