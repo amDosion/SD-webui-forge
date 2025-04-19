@@ -144,7 +144,7 @@ if [ "$UI" = "auto" ]; then
 elif [ "$UI" = "forge" ]; then
   TARGET_DIR="/app/webui/sd-webui-forge"
   # 使用官方 Forge 仓库
-  REPO="https://github.com/amDosion/stable-diffusion-webui-forge-cuda128.git"
+  REPO="https://github.com/amDosion/stable-diffusion-webui-fastforge.git"
 
 elif [ "$UI" = "stable_diffusion_webui" ]; then # auto 的别名
   TARGET_DIR="/app/webui/stable-diffusion-webui"
