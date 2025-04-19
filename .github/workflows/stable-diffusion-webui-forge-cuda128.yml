@@ -1,11 +1,11 @@
-name: stable-diffusion-webui-forge-cuda128
+name: fastforge-cuda126
 
 on:
   workflow_dispatch:  # 仅手动触发或用于其他触发方式
 
 env:
-  DOCKER_IMAGE: chuan1127/stable-diffusion-webui-forge-cuda128
-  FORGE_REPO: https://github.com/lllyasviel/stable-diffusion-webui-forge.git
+  DOCKER_IMAGE: chuan1127/fastforge-cuda126
+  FORGE_REPO: https://github.com/LeeAeron/stable-diffusion-webui-fastforge
   AUTO_REPO: https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 
 jobs:
