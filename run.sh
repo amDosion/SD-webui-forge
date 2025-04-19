@@ -219,6 +219,13 @@ git clone https://github.com/salesforce/BLIP.git "repositories/BLIP" || {
   exit 1
 }
 
+# 克隆 google_blockly_prototypes 仓库
+echo "  - 克隆 google_blockly_prototypes 仓库..."
+git clone https://github.com/lllyasviel/google_blockly_prototypes.git "repositories/google_blockly_prototypes" || {
+  echo "❌ 克隆 google_blockly_prototypes 仓库失败"
+  exit 1
+}
+
 # ==================================================
 # requirements 文件检查 (仅非 Forge UI)
 # ==================================================
